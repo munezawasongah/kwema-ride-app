@@ -1,0 +1,48 @@
+# Local development stack. PostGIS and Redis with the same major versions as
+# the Railway plugins, so a query that works here works there.
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: kwema
+      POSTGRES_PASSWORD: kwema
+      POSTGRES_DB: kwema
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kwema"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://kwema:kwema@postgres:5432/kwema
+      DATABASE_SSL: "false"
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: dev-secret-not-for-production-use-32
+      OFFER_TOKEN_SECRET: dev-offer-secret-not-for-production
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  redisdata:

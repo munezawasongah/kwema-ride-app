@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+npm-debug.log*
+coverage/
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/ios/Pods/
+mobile/android/.gradle/
+mobile/**/*.g.dart
+mobile/**/*.freezed.dart
