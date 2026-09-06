@@ -32,14 +32,13 @@ import {
 } from '@nestjs/websockets';
 import { Logger, UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import { JwtService } from '@nestjs/jwt';
 
 import { DispatchService, VehicleCategory } from '../dispatch/dispatch.service';
 import { RidesService } from '../rides/rides.service';
 import { WsThrottleGuard } from '../common/guards/ws-throttle.guard';
-import { REDIS, REDIS_PUB, REDIS_SUB } from '../common/redis.module';
+import { REDIS } from '../common/redis.module';
 
 // ---------------------------------------------------------------------
 // Wire contracts
@@ -98,8 +97,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     @Inject(forwardRef(() => RidesService))
     private readonly rides: RidesService,
     @Inject(REDIS) private readonly redis: Redis,
-    @Inject(REDIS_PUB) private readonly redisPub: Redis,
-    @Inject(REDIS_SUB) private readonly redisSub: Redis,
   ) {}
 
   // =====================================================================
@@ -107,7 +104,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   // =====================================================================
 
   afterInit(server: Server): void {
-    server.adapter(createAdapter(this.redisPub, this.redisSub));
+    // The Redis adapter is installed in main.ts via RedisIoAdapter. It cannot
+    // be set here: this gateway declares a namespace, so `server` is a
+    // Socket.IO Namespace whose `adapter` is a property, not a method.
 
     // Authenticate during the handshake so an unauthenticated socket never
     // reaches a message handler.

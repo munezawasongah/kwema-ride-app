@@ -17,6 +17,7 @@ import type { Request } from 'express';
 
 import { AppModule } from './app.module';
 import { validateEnvironment } from './common/env.validation';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -61,6 +62,14 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+
+  // The Redis adapter must be attached to the root Socket.IO server before
+  // any namespace is created, so it is installed here rather than in the
+  // gateway's afterInit — a namespaced gateway never receives the root
+  // server, only its own Namespace.
+  const wsAdapter = new RedisIoAdapter(app);
+  await wsAdapter.connectToRedis(process.env.REDIS_URL);
+  app.useWebSocketAdapter(wsAdapter);
 
   // Railway sends SIGTERM on redeploy. Without this, in-flight rides lose
   // their sockets without the gateway getting a chance to clean up.
