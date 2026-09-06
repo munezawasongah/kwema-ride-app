@@ -1,26 +1,24 @@
-/// Rider home screen.
+/// Rider home.
 ///
-/// Layout intent: the map is the screen, and everything else is a sheet that
-/// rises over it. Riders here are often standing at a roadside in bright sun
-/// on a mid-range Android device, so the design commits to three things —
-/// large tap targets, high contrast, and never blocking the UI on a network
-/// call. Prices render the instant a local estimate is available and reconcile
-/// when the server quote lands.
-///
-/// Swahili is the default language; English is the fallback. All strings come
-/// from the l10n delegate, none are inline.
-
-import 'dart:async';
+/// The map is the screen; everything else rises over it. Riders here are
+/// often standing at a roadside in bright sun on a mid-range Android device,
+/// so this commits to large tap targets, high contrast, and never blocking
+/// the UI on a network call. A stale price renders at reduced opacity while
+/// re-quoting rather than being replaced by a spinner — a number that dims
+/// reads as "updating", a blank box reads as broken.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/format/tzs.dart';
-import '../../core/l10n/app_localizations.dart';
-import '../../core/models/vehicle_category.dart';
-import '../../core/models/fare_quote.dart';
+import '../../core/l10n/language_controller.dart';
+import '../../core/l10n/localization.dart';
+import '../../core/models/models.dart';
+import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
+import 'ride_tracking_sheet.dart';
 
 class RiderHomeScreen extends ConsumerStatefulWidget {
   const RiderHomeScreen({super.key});
@@ -31,22 +29,39 @@ class RiderHomeScreen extends ConsumerStatefulWidget {
 
 class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
   GoogleMapController? _map;
-  Timer? _quoteDebounce;
+  final _searchController = TextEditingController();
 
   @override
   void dispose() {
-    _quoteDebounce?.cancel();
     _map?.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  /// Requesting a new quote on every marker drag would burn both the maps
-  /// quota and the rider's bundle. 600 ms after they stop moving is enough.
-  void _scheduleQuote() {
-    _quoteDebounce?.cancel();
-    _quoteDebounce = Timer(const Duration(milliseconds: 600), () {
-      ref.read(riderControllerProvider.notifier).refreshQuote();
-    });
+  Set<Marker> _markers(RiderState s) {
+    final markers = <Marker>{};
+    if (s.pickup != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('pickup'),
+        position: s.pickup!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      ));
+    }
+    if (s.dropoff != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('dropoff'),
+        position: s.dropoff!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ));
+    }
+    if (s.driverPosition != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('driver'),
+        position: s.driverPosition!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      ));
+    }
+    return markers;
   }
 
   @override
@@ -58,70 +73,71 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
+            initialCameraPosition: CameraPosition(
               // Posta, Dar es Salaam — a sensible cold-start centre.
-              target: LatLng(-6.8161, 39.2894),
+              target: state.pickup ?? const LatLng(-6.8161, 39.2894),
               zoom: 15,
             ),
-            onMapCreated: (c) {
-              _map = c;
-              ref.read(riderControllerProvider.notifier).attachMap(c);
-            },
-            onCameraMove: (pos) {
-              ref.read(riderControllerProvider.notifier).setPickup(pos.target);
-            },
-            onCameraIdle: _scheduleQuote,
-            markers: state.driverMarkers,
-            polylines: state.routePolylines,
+            onMapCreated: (c) => _map = c,
+            markers: _markers(state),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            // Cuts frame cost noticeably on entry-level devices.
-            liteModeEnabled: false,
-            compassEnabled: false,
             zoomControlsEnabled: false,
-            padding: const EdgeInsets.only(bottom: 320),
+            compassEnabled: false,
+            padding: EdgeInsets.only(
+                bottom: state.hasActiveRide ? 280 : 330, top: 100),
           ),
 
-          // Centre pin. Stays fixed while the map moves under it, which reads
-          // as more responsive than dragging a marker on a slow device.
-          const IgnorePointer(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 320 + 24),
-                child: _PickupPin(),
-              ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                const Expanded(child: SizedBox()),
+                const LanguagePill(),
+                const SizedBox(width: 8),
+                Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    icon: const Icon(Icons.logout, size: 20),
+                    onPressed: () =>
+                        ref.read(authControllerProvider.notifier).signOut(),
+                  ),
+                ),
+              ]),
             ),
           ),
-
-          SafeArea(child: _DestinationBar(destination: state.destinationLabel)),
 
           Align(
             alignment: Alignment.bottomCenter,
-            child: _RequestSheet(
-              categories: state.availableCategories,
-              selected: state.selectedCategory,
-              quotes: state.quotes,
-              isQuoting: state.isQuoting,
-              canRequest: state.canRequest,
-              isRequesting: state.isRequesting,
-              onSelect: (c) {
-                ref.read(riderControllerProvider.notifier).selectCategory(c);
-              },
-              onRequest: () {
-                ref.read(riderControllerProvider.notifier).requestRide();
-              },
-            ),
+            child: state.hasActiveRide
+                ? RideTrackingSheet(ride: state.ride!)
+                : _BookingSheet(
+                    state: state,
+                    searchController: _searchController,
+                  ),
           ),
 
-          if (state.errorKey != null)
+          if (state.errorKey != null && !state.hasActiveRide)
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 340,
-              child: _ErrorBanner(
-                message: l10n.translate(state.errorKey!),
-                onDismiss: () =>
-                    ref.read(riderControllerProvider.notifier).clearError(),
+              left: 16, right: 16, bottom: 350,
+              child: Material(
+                color: Theme.of(context).colorScheme.error,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(l10n.translate(state.errorKey!),
+                          style: const TextStyle(color: Colors.white)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () =>
+                          ref.read(riderControllerProvider.notifier).clearError(),
+                    ),
+                  ]),
+                ),
               ),
             ),
         ],
@@ -131,158 +147,155 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
 }
 
 // ---------------------------------------------------------------------
-// Bottom sheet: category carousel + fare + request button
-// ---------------------------------------------------------------------
 
-class _RequestSheet extends StatelessWidget {
-  const _RequestSheet({
-    required this.categories,
-    required this.selected,
-    required this.quotes,
-    required this.isQuoting,
-    required this.canRequest,
-    required this.isRequesting,
-    required this.onSelect,
-    required this.onRequest,
-  });
+class _BookingSheet extends ConsumerWidget {
+  const _BookingSheet({required this.state, required this.searchController});
 
-  final List<VehicleCategory> categories;
-  final VehicleCategory selected;
-  final Map<VehicleCategory, FareQuote> quotes;
-  final bool isQuoting;
-  final bool canRequest;
-  final bool isRequesting;
-  final ValueChanged<VehicleCategory> onSelect;
-  final VoidCallback onRequest;
+  final RiderState state;
+  final TextEditingController searchController;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final quote = quotes[selected];
+    final controller = ref.read(riderControllerProvider.notifier);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 24, offset: Offset(0, -4)),
+          BoxShadow(color: Color(0x1A000000), blurRadius: 24, offset: Offset(0, -4))
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.dividerColor,
-                borderRadius: BorderRadius.circular(2),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: l10n.translate('rider.where_to'),
+                  prefixIcon: const Icon(Icons.search),
+                ),
+                onChanged: controller.searchPlaces,
               ),
-            ),
-            const SizedBox(height: 16),
 
-            // --- Category carousel ---------------------------------
-            SizedBox(
-              height: 132,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, i) {
-                  final category = categories[i];
-                  return _CategoryCard(
-                    category: category,
-                    quote: quotes[category],
-                    isSelected: category == selected,
-                    isLoading: isQuoting && quotes[category] == null,
-                    onTap: () => onSelect(category),
-                  );
-                },
-              ),
-            ),
+              if (state.suggestions.isNotEmpty)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: state.suggestions.length,
+                    itemBuilder: (context, i) {
+                      final s = state.suggestions[i];
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.place_outlined, size: 20),
+                        title: Text(s.primary,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(s.secondary,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        onTap: () {
+                          searchController.text = s.primary;
+                          FocusScope.of(context).unfocus();
+                          controller.chooseDestination(s);
+                        },
+                      );
+                    },
+                  ),
+                ),
 
-            const SizedBox(height: 16),
+              if (state.quotes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 128,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: state.quotes.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, i) {
+                      final quote = state.quotes[i];
+                      return _CategoryCard(
+                        quote: quote,
+                        isSelected: state.selected?.category == quote.category,
+                        isQuoting: state.isQuoting,
+                        onTap: () => controller.selectCategory(quote.category),
+                      );
+                    },
+                  ),
+                ),
 
-            // --- Fare + surge notice --------------------------------
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
+                const SizedBox(height: 12),
+                _PaymentSelector(
+                  selected: state.paymentMethod,
+                  onSelect: controller.setPaymentMethod,
+                ),
+
+                const SizedBox(height: 12),
+                Row(children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          l10n.translate('rider.estimated_fare'),
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 2),
-                        // The number never shows a spinner in place: a stale
-                        // price with a subtle loading tint beats a blank box.
+                        Text(l10n.translate('rider.estimated_fare'),
+                            style: theme.textTheme.bodySmall),
                         AnimatedOpacity(
-                          opacity: isQuoting ? 0.45 : 1.0,
+                          opacity: state.isQuoting ? 0.45 : 1,
                           duration: const Duration(milliseconds: 180),
                           child: Text(
-                            quote == null
+                            state.selected == null
                                 ? '—'
-                                : formatTzs(quote.totalFareCents),
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                                : formatTzs(state.selected!.totalFareCents),
+                            style: theme.textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (quote != null && quote.surgeMultiplier > 1.0)
-                    _SurgeChip(multiplier: quote.surgeMultiplier),
+                  if (state.selected != null &&
+                      state.selected!.fare.surgeMultiplier > 1)
+                    _SurgeChip(
+                        multiplier: state.selected!.fare.surgeMultiplier),
+                ]),
+
+                if (state.selected?.isEstimate == true) ...[
+                  const SizedBox(height: 6),
+                  Text(l10n.translate('error.network'),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: KwemaColors.marigold700)),
                 ],
-              ),
-            ),
 
-            const SizedBox(height: 12),
-
-            // --- Request button -------------------------------------
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton(
-                  onPressed: canRequest && !isRequesting ? onRequest : null,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    onPressed: state.canRequest && !state.isRequesting
+                        ? controller.requestRide
+                        : null,
+                    child: state.isRequesting
+                        ? const SizedBox(
+                            width: 22, height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.4, color: Colors.white))
+                        : Text(
+                            l10n.translate('rider.request_ride', params: {
+                              'category': state.selected == null
+                                  ? ''
+                                  : l10n.categoryName(state.selected!.category),
+                            }),
+                            style: const TextStyle(fontSize: 16),
+                          ),
                   ),
-                  child: isRequesting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          l10n.translate(
-                            'rider.request_ride',
-                            params: {'category': l10n.categoryName(selected)},
-                          ),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -291,17 +304,15 @@ class _RequestSheet extends StatelessWidget {
 
 class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
-    required this.category,
     required this.quote,
     required this.isSelected,
-    required this.isLoading,
+    required this.isQuoting,
     required this.onTap,
   });
 
-  final VehicleCategory category;
-  final FareQuote? quote;
+  final FareQuote quote;
   final bool isSelected;
-  final bool isLoading;
+  final bool isQuoting;
   final VoidCallback onTap;
 
   @override
@@ -312,62 +323,108 @@ class _CategoryCard extends StatelessWidget {
     return Semantics(
       selected: isSelected,
       button: true,
-      label: l10n.categoryName(category),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           width: 116,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.10)
+                ? quote.category.colour.withValues(alpha: 0.10)
                 : theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+              color: isSelected ? quote.category.colour : Colors.transparent,
               width: 2,
             ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(category.assetPath, height: 40, fit: BoxFit.contain),
-              const SizedBox(height: 8),
-              Text(
-                l10n.categoryName(category),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              // Tier colour bar rather than an icon: riders with limited
+              // literacy recognise the tile by colour before reading it.
+              Container(
+                width: 28, height: 5,
+                decoration: BoxDecoration(
+                  color: quote.category.colour,
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
+              const SizedBox(height: 10),
+              Text(l10n.categoryName(quote.category),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight:
+                          isSelected ? FontWeight.w800 : FontWeight.w500)),
               const SizedBox(height: 4),
-              if (isLoading)
-                const SizedBox(
-                  height: 14,
-                  width: 40,
-                  child: LinearProgressIndicator(minHeight: 3),
-                )
-              else
-                Text(
-                  quote == null ? '—' : formatTzsCompact(quote.totalFareCents),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              const SizedBox(height: 2),
+              AnimatedOpacity(
+                opacity: isQuoting ? 0.45 : 1,
+                duration: const Duration(milliseconds: 180),
+                child: Text(formatTzsCompact(quote.totalFareCents),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ),
               Text(
-                quote == null
-                    ? ''
-                    : l10n.translate('rider.eta_min',
-                        params: {'min': '${(quote.etaSeconds / 60).ceil()}'}),
+                l10n.translate('rider.eta_min',
+                    params: {'min': '${(quote.etaSeconds / 60).ceil()}'}),
                 style: theme.textTheme.bodySmall,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PaymentSelector extends StatelessWidget {
+  const _PaymentSelector({required this.selected, required this.onSelect});
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    const methods = ['mobile_money', 'card', 'cash'];
+
+    return Row(
+      children: methods.map((m) {
+        final on = m == selected;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => onSelect(m),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                decoration: BoxDecoration(
+                  color: on
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.surface,
+                  border: Border.all(
+                    color: on ? theme.colorScheme.primary : theme.colorScheme.outline,
+                    width: on ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    l10n.translate('payment.$m'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -382,125 +439,22 @@ class _SurgeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
+        color: KwemaColors.marigold50,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.trending_up, size: 16, color: Color(0xFFE65100)),
-          const SizedBox(width: 6),
-          Text(
-            // Stating the reason, not just the number, cuts complaints:
-            // "high demand ×1.2" rather than a bare multiplier.
-            l10n.translate('rider.surge_active',
-                params: {'x': multiplier.toStringAsFixed(1)}),
-            style: const TextStyle(
-              color: Color(0xFFE65100),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.trending_up, size: 16, color: KwemaColors.marigold700),
+        const SizedBox(width: 6),
+        // Stating the reason rather than a bare multiplier cuts complaints.
+        Text(
+          l10n.translate('rider.surge_active',
+              params: {'x': multiplier.toStringAsFixed(1)}),
+          style: const TextStyle(
+              color: KwemaColors.marigold700,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DestinationBar extends StatelessWidget {
-  const _DestinationBar({required this.destination});
-  final String? destination;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Material(
-        elevation: 3,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => Navigator.of(context).pushNamed('/search-destination'),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Row(
-              children: [
-                const Icon(Icons.search, size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    destination ?? l10n.translate('rider.where_to'),
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: destination == null ? Colors.black54 : Colors.black87,
-                      fontWeight:
-                          destination == null ? FontWeight.w400 : FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
+              fontSize: 13),
         ),
-      ),
-    );
-  }
-}
-
-class _PickupPin extends StatelessWidget {
-  const _PickupPin();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            AppLocalizations.of(context).translate('rider.pickup_here'),
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Icon(Icons.location_on, size: 44, color: Color(0xFF1B5E20)),
-      ],
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message, required this.onDismiss});
-  final String message;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFB3261E),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(message,
-                  style: const TextStyle(color: Colors.white, fontSize: 14)),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 20),
-              onPressed: onDismiss,
-            ),
-          ],
-        ),
-      ),
+      ]),
     );
   }
 }

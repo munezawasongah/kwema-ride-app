@@ -18,8 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/format/tzs.dart';
-import '../../core/l10n/app_localizations.dart';
-import '../../core/models/ride_offer.dart';
+import '../../core/l10n/localization.dart';
+import '../../core/models/models.dart';
 
 class IncomingRideModal extends StatefulWidget {
   const IncomingRideModal({

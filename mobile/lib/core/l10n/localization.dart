@@ -19,32 +19,12 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:intl/intl.dart';
+import '../format/tzs.dart';
+import '../models/models.dart';
 
-import '../models/vehicle_category.dart';
-
-// =====================================================================
-// Currency
-// =====================================================================
-
-final NumberFormat _tzsFormat = NumberFormat.decimalPattern('en');
-
-/// "TSh 3,450"
-String formatTzs(int cents) => 'TSh ${_tzsFormat.format((cents / 100).round())}';
-
-/// Compact form for tight spaces. Below 10,000 TZS the full number fits and
-/// is clearer than an abbreviation.
-String formatTzsCompact(int cents) {
-  final shillings = (cents / 100).round();
-  if (shillings < 10000) return _tzsFormat.format(shillings);
-  return '${(shillings / 1000).toStringAsFixed(1)}K';
-}
-
-/// Tolerant of "3,450", "3450", "TSh 3450".
-int? parseTzsToCents(String input) {
-  final cleaned = input.replaceAll(RegExp(r'[^0-9]'), '');
-  return cleaned.isEmpty ? null : int.parse(cleaned) * 100;
-}
+// Currency helpers live in core/format/tzs.dart; re-exported so screens can
+// import either path without a duplicate-symbol conflict.
+export '../format/tzs.dart';
 
 // =====================================================================
 // Supported languages
@@ -111,7 +91,7 @@ class AppLocalizations {
   }
 
   String categoryName(VehicleCategory category) =>
-      translate('category.${category.name}');
+      translate('category.${category.wire}');
 
   String minutes(int n) => translate(
       n == 1 ? 'time.minute_one' : 'time.minute_other',
@@ -196,6 +176,37 @@ const Map<String, Map<String, String>> _translations = {
     'error.gps_off': 'Washa GPS ili kuendelea.',
     'error.quote_expired': 'Bei imeisha muda. Tunapata bei mpya.',
 
+    'auth.phone_label': 'Namba ya simu',
+    'auth.phone_hint': 'Tutakutumia msimbo wa tarakimu sita kwa SMS.',
+    'auth.send_code': 'Tuma msimbo',
+    'auth.code_label': 'Weka msimbo',
+    'auth.verify': 'Thibitisha',
+    'auth.change_number': 'Badilisha namba',
+    'error.phone_format': 'Tumia muundo +255XXXXXXXXX',
+    'error.otp_cooldown': 'Msimbo tayari umetumwa. Subiri sekunde {n}.',
+    'error.otp_invalid': 'Msimbo si sahihi. Jaribu tena.',
+    'status.searching': 'Tunatafuta dereva...',
+    'status.accepted': 'Dereva anakuja',
+    'status.arrived': 'Dereva amefika',
+    'status.inProgress': 'Safari inaendelea',
+    'status.completed': 'Safari imekamilika',
+    'status.cancelled': 'Safari imesitishwa',
+    'status.expired': 'Hakuna dereva karibu',
+    'rider.confirm': 'Thibitisha safari',
+    'rider.cancel': 'Sitisha safari',
+    'rider.pay_now': 'Lipa sasa',
+    'driver.online': 'Uko kazini',
+    'driver.offline': 'Hauko kazini',
+    'driver.today': 'Leo',
+    'driver.trips': 'safari',
+    'driver.earnings': 'mapato',
+    'driver.arrived_btn': 'Nimefika',
+    'driver.start_btn': 'Anza safari',
+    'driver.complete_btn': 'Maliza safari',
+    'driver.cash_collected': 'Nimepokea pesa',
+    'driver.debt_warning': 'Deni la kamisheni: {amount}. Lipa ili uendelee kupokea safari.',
+    'common.retry': 'Jaribu tena',
+    'common.close': 'Funga',
     'time.minute_one': 'dakika {n}',
     'time.minute_other': 'dakika {n}',
   },
@@ -254,6 +265,37 @@ const Map<String, Map<String, String>> _translations = {
     'error.gps_off': 'Turn on GPS to continue.',
     'error.quote_expired': 'That price expired. Getting a new one.',
 
+    'auth.phone_label': 'Phone number',
+    'auth.phone_hint': 'We will send a six-digit code by SMS.',
+    'auth.send_code': 'Send code',
+    'auth.code_label': 'Enter the code',
+    'auth.verify': 'Verify',
+    'auth.change_number': 'Change number',
+    'error.phone_format': 'Use the format +255XXXXXXXXX',
+    'error.otp_cooldown': 'A code was already sent. Wait {n} seconds.',
+    'error.otp_invalid': 'That code is not correct. Try again.',
+    'status.searching': 'Finding a driver...',
+    'status.accepted': 'Driver on the way',
+    'status.arrived': 'Driver has arrived',
+    'status.inProgress': 'Trip in progress',
+    'status.completed': 'Trip complete',
+    'status.cancelled': 'Trip cancelled',
+    'status.expired': 'No drivers nearby',
+    'rider.confirm': 'Confirm ride',
+    'rider.cancel': 'Cancel ride',
+    'rider.pay_now': 'Pay now',
+    'driver.online': 'Online',
+    'driver.offline': 'Offline',
+    'driver.today': 'Today',
+    'driver.trips': 'trips',
+    'driver.earnings': 'earned',
+    'driver.arrived_btn': 'I have arrived',
+    'driver.start_btn': 'Start trip',
+    'driver.complete_btn': 'Complete trip',
+    'driver.cash_collected': 'Cash received',
+    'driver.debt_warning': 'Commission owed: {amount}. Settle to keep receiving rides.',
+    'common.retry': 'Try again',
+    'common.close': 'Close',
     'time.minute_one': '{n} minute',
     'time.minute_other': '{n} minutes',
   },
@@ -317,6 +359,37 @@ const Map<String, Map<String, String>> _translations = {
     'error.gps_off': 'Activez le GPS pour continuer.',
     'error.quote_expired': 'Ce tarif a expiré. Nouveau calcul en cours.',
 
+    'auth.phone_label': 'Numéro de téléphone',
+    'auth.phone_hint': 'Nous enverrons un code à six chiffres par SMS.',
+    'auth.send_code': 'Envoyer le code',
+    'auth.code_label': 'Saisissez le code',
+    'auth.verify': 'Vérifier',
+    'auth.change_number': 'Changer de numéro',
+    'error.phone_format': 'Utilisez le format +255XXXXXXXXX',
+    'error.otp_cooldown': 'Un code a déjà été envoyé. Attendez {n} secondes.',
+    'error.otp_invalid': 'Code incorrect. Réessayez.',
+    'status.searching': "Recherche d'un chauffeur...",
+    'status.accepted': 'Le chauffeur arrive',
+    'status.arrived': 'Le chauffeur est arrivé',
+    'status.inProgress': 'Trajet en cours',
+    'status.completed': 'Trajet terminé',
+    'status.cancelled': 'Trajet annulé',
+    'status.expired': 'Aucun chauffeur à proximité',
+    'rider.confirm': 'Confirmer la course',
+    'rider.cancel': 'Annuler la course',
+    'rider.pay_now': 'Payer maintenant',
+    'driver.online': 'En ligne',
+    'driver.offline': 'Hors ligne',
+    'driver.today': "Aujourd'hui",
+    'driver.trips': 'courses',
+    'driver.earnings': 'gagné',
+    'driver.arrived_btn': 'Je suis arrivé',
+    'driver.start_btn': 'Démarrer',
+    'driver.complete_btn': 'Terminer',
+    'driver.cash_collected': 'Espèces reçues',
+    'driver.debt_warning': 'Commission due : {amount}. Réglez pour continuer.',
+    'common.retry': 'Réessayer',
+    'common.close': 'Fermer',
     'time.minute_one': '{n} minute',
     'time.minute_other': '{n} minutes',
   },

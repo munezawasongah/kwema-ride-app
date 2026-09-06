@@ -1,0 +1,52 @@
+name: kwema_ride
+description: Kwema Ride — rider and driver apps for Tanzania.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management. Riverpod over Provider/Bloc mainly because the driver
+  # app needs the same controllers alive outside the widget tree — location
+  # streaming continues while the UI is backgrounded.
+  flutter_riverpod: ^2.5.1
+
+  # Maps and location
+  google_maps_flutter: ^2.9.0
+  geolocator: ^13.0.2
+  flutter_polyline_points: ^2.1.0
+
+  # Networking
+  dio: ^5.7.0
+  socket_io_client: ^2.0.3+1
+
+  # Storage. sqflite backs the offline location buffer; shared_preferences
+  # holds the language choice and session tokens.
+  sqflite: ^2.4.1
+  shared_preferences: ^2.3.3
+  flutter_secure_storage: ^9.2.2
+
+  # UI
+  google_fonts: ^6.2.1
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+
+  # Card payments open the provider's hosted 3-D Secure page in a WebView.
+  # Card fields are never rendered by this app.
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/vehicles/
