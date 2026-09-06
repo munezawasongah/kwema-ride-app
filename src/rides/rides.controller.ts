@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthedUser } from '../auth/current-user.decorator';
@@ -7,6 +8,21 @@ import { RidesService } from './rides.service';
 
 class CancelDto {
   @IsOptional() @IsString() reason?: string;
+}
+
+class PointDto {
+  @IsNumber() lat: number;
+  @IsNumber() lng: number;
+  @IsOptional() @IsString() address?: string;
+}
+
+class RequestRideDto {
+  @IsString() clientGeneratedId: string;
+  @IsString() quoteId: string;
+  @IsIn(['boda', 'bajaji', 'standard', 'xl', 'express']) category: string;
+  @IsIn(['cash', 'mobile_money', 'card', 'wallet']) paymentMethod: string;
+  @ValidateNested() @Type(() => PointDto) pickup: PointDto;
+  @ValidateNested() @Type(() => PointDto) dropoff: PointDto;
 }
 
 /**
@@ -18,6 +34,22 @@ class CancelDto {
 @UseGuards(JwtAuthGuard)
 export class RidesController {
   constructor(private readonly rides: RidesService) {}
+
+  /**
+   * Requests a ride over HTTP.
+   *
+   * The mobile apps do this over the WebSocket, but the web client needs an
+   * HTTP path — a browser tab can lose its socket to a background-tab
+   * throttle at exactly the wrong moment. Same idempotency key, same locked
+   * quote, same dispatch loop; only the transport differs.
+   */
+  @Post('request')
+  async request(@CurrentUser() user: AuthedUser, @Body() dto: RequestRideDto) {
+    const ride = await this.rides.createOrGet(user.id, dto);
+    // Dispatch runs out of band; progress reaches the client over the socket.
+    void this.rides.startDispatch(ride.id);
+    return this.rides.toWireSummary(ride);
+  }
 
   @Get('active')
   active(@CurrentUser() user: AuthedUser) {

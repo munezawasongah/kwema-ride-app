@@ -14,6 +14,7 @@ RUN npm ci
 COPY tsconfig.json nest-cli.json ./
 COPY src ./src
 COPY db ./db
+COPY public ./public
 
 RUN npm run build
 
@@ -38,6 +39,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/db ./db
+# The website is served by the API service, so it ships in the same image.
+COPY --from=build /app/public ./public
 
 USER kwema
 

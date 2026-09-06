@@ -27,7 +27,7 @@ export class StatusController {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  @Get()
+  @Get('status')
   @Header('Content-Type', 'text/html; charset=utf-8')
   @Header('Cache-Control', 'no-store')
   async index(): Promise<string> {

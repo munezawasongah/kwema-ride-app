@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Omba safari — Kwema Ride</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body{height:100vh;overflow:hidden}
+  .layout{display:grid;grid-template-columns:400px 1fr;height:100vh}
+  .panel{background:#fff;border-right:1px solid var(--line);overflow-y:auto;
+    display:flex;flex-direction:column}
+  .panel-head{padding:18px 22px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;z-index:5}
+  .panel-body{padding:22px;flex:1}
+  #map{width:100%;height:100vh;background:var(--surface)}
+  .map-fallback{display:flex;align-items:center;justify-content:center;height:100%;
+    text-align:center;padding:40px;color:var(--muted);flex-direction:column;gap:10px}
+  .cat{display:flex;align-items:center;gap:13px;padding:13px;border:1.5px solid var(--line);
+    border-radius:var(--r);cursor:pointer;margin-bottom:9px;background:#fff;transition:.14s}
+  .cat.on{border-color:var(--tz-500);border-width:2px;background:var(--tz-50)}
+  .cat .bar{width:6px;height:36px;border-radius:3px;flex:none}
+  .cat .nm{font-weight:700;font-size:15px}
+  .cat .mt{font-size:13px;color:var(--muted)}
+  .cat .pr{margin-left:auto;text-align:right}
+  .cat .pr strong{font-size:16px;font-weight:800;display:block}
+  .pm{display:flex;gap:8px;margin-bottom:14px}
+  .pm button{flex:1;padding:12px 6px;border:1.5px solid var(--line);border-radius:var(--r);
+    background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink)}
+  .pm button.on{border-color:var(--tz-500);border-width:2px;background:var(--tz-50);color:var(--tz-700)}
+  .status-box{text-align:center;padding:26px 0}
+  .spinner{width:44px;height:44px;border:4px solid var(--line);border-top-color:var(--tz-500);
+    border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .msg{padding:12px 14px;border-radius:var(--r);font-size:14px;margin-bottom:14px}
+  .msg-err{background:#FBEAE8;color:var(--stop)}
+  .msg-ok{background:#E3F3EA;color:var(--go)}
+  .msg-info{background:var(--mg-50);color:var(--mg-700)}
+  .driver-card{background:var(--tz-50);border-radius:var(--r);padding:16px;margin-bottom:14px}
+  label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  select{width:100%;padding:13px;border:1.5px solid var(--line);border-radius:var(--r);
+    font-family:inherit;font-size:15px;background:#fff}
+  @media(max-width:860px){
+    body{overflow:auto}
+    .layout{grid-template-columns:1fr;height:auto}
+    .panel{border-right:none;border-bottom:1px solid var(--line)}
+    #map{height:320px}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="panel">
+    <div class="panel-head">
+      <a href="/" class="logo">Kwema</a>
+      <div class="lang-switch" id="lang" style="margin-left:auto">
+        <button data-lang="sw" style="background:var(--surface);color:var(--ink)">SW</button>
+        <button data-lang="en" style="background:var(--surface);color:var(--ink)">EN</button>
+        <button data-lang="fr" style="background:var(--surface);color:var(--ink)">FR</button>
+      </div>
+    </div>
+    <div class="panel-body" id="panel"></div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="/i18n.js"></script>
+<script src="/book.js"></script>
+</body>
+</html>

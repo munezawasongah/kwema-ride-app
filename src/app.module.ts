@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'node:path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -15,10 +17,21 @@ import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
 import { HealthController } from './health/health.controller';
 import { StatusController } from './health/status.controller';
+import { ConfigController } from './health/config.controller';
 import { JobsService } from './common/jobs.service';
 
 @Module({
   imports: [
+    // The website is served from the same service as the API. A separate
+    // static host would mean a second deploy target, cross-origin cookies and
+    // another thing to keep in sync for no benefit at this size.
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      serveStaticOptions: { index: ['index.html'], extensions: ['html'] },
+      // Anything the API owns must not be swallowed by the static handler.
+      exclude: ['/api/(.*)', '/rt/(.*)', '/socket.io/(.*)', '/health', '/healthz', '/status'],
+    }),
+
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Railway's Postgres plugin injects DATABASE_URL.
@@ -59,7 +72,7 @@ import { JobsService } from './common/jobs.service';
     RealtimeModule,
     PaymentsModule,
   ],
-  controllers: [HealthController, StatusController],
+  controllers: [HealthController, StatusController, ConfigController],
   providers: [
     JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
