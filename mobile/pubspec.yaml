@@ -48,5 +48,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/vehicles/
+
+  # No assets declared: Flutter fails the build on an empty asset directory,
+  # and the UI identifies vehicle tiers by colour bar rather than icon. Add
+  # an assets: block here when real artwork exists.

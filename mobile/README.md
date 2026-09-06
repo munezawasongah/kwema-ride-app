@@ -110,12 +110,30 @@ through the backend proxy, so the server key never ships in an APK. APKs get
 unpacked, and a Directions-capable key in one is someone else spending your
 Maps budget.
 
+## Building the APKs without installing Flutter
+
+`.github/workflows/mobile-release.yml` builds both APKs on GitHub's runners
+and attaches them to a Release. Push a tag, or run it from the Actions tab.
+
+That workflow is also the first thing to actually compile this code — it runs
+`flutter analyze` and uploads the output as an artifact, so the analyzer
+report is available even on a green build.
+
+The `android/` folder is not committed. CI runs `flutter create --platforms=
+android` to generate it, then `tool/patch_android_manifest.py` injects the
+Maps key and the location permissions. Platform scaffolding is large, noisy
+in diffs, and fully regenerable, so it stays out of the repo.
+
+Required repository secret: `ANDROID_MAPS_API_KEY` — the Android-restricted
+Maps key. Without it the build still succeeds and maps render blank.
+
 ## Assets
 
-`assets/vehicles/` is referenced by `pubspec.yaml` but empty. Either add
-`boda.png`, `bajaji.png`, `car.png`, `xl.png` and `express.png`, or remove
-the `assets:` block — a missing asset directory fails the build. The UI
-currently uses coloured bars rather than icons, so removing it is safe.
+No assets are declared. Vehicle tiers are identified by coloured bar rather
+than icon, which also means one less thing to download on a metered
+connection. To add artwork, drop files in `assets/` and re-add an `assets:`
+block to `pubspec.yaml` — note that declaring an empty directory fails the
+build.
 
 ## Design decisions worth keeping
 

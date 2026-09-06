@@ -1,0 +1,137 @@
+# Builds the rider and driver APKs and publishes them to a GitHub Release.
+#
+# The website reads RIDER_APK_URL and DRIVER_APK_URL from Railway variables,
+# so pointing those at the release assets is all it takes to make the download
+# buttons live. No local Flutter toolchain needed.
+#
+# Trigger: push a tag like v0.1.0, or run it by hand from the Actions tab.
+
+name: Build mobile APKs
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag for the release (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0-preview'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Flutter's Android toolchain needs a JDK; 17 is what current Gradle
+      # expects. Leaving this to the runner default has broken builds before.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Report toolchain
+        run: flutter --version
+
+      # The repo carries lib/ and pubspec.yaml but no android/ folder —
+      # platform scaffolding is generated rather than committed, because it is
+      # large, noisy in diffs, and regenerable. `flutter create` on an existing
+      # directory adds the missing platform files and leaves lib/ untouched.
+      - name: Generate Android platform files
+        working-directory: mobile
+        run: |
+          flutter create --platforms=android \
+            --org tz.co.kwemaride \
+            --project-name kwema_ride \
+            --overwrite .
+
+      # The Maps SDK key is injected at build time from a repository secret so
+      # it never sits in the repo. This is the Android-restricted key (SHA-1 +
+      # package name), not the server key — that one must never ship in an APK.
+      # Injected at build time from a repository secret so it never sits in
+      # the repo. This is the Android-restricted key (SHA-1 + package name),
+      # never the server key.
+      - name: Inject Maps API key and permissions
+        working-directory: mobile
+        env:
+          MAPS_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
+        run: |
+          if [ -z "$MAPS_KEY" ]; then
+            echo "::warning::ANDROID_MAPS_API_KEY not set - maps will render blank"
+            MAPS_KEY="MISSING_KEY"
+          fi
+          python3 tool/patch_android_manifest.py \
+            android/app/src/main/AndroidManifest.xml "$MAPS_KEY"
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      # Reported but not gate-keeping: this is the first CI run of code that
+      # was never compiled locally, and a blocked pipeline would hide the
+      # analyzer output behind a failed job.
+      - name: Analyze
+        working-directory: mobile
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.txt
+
+      - name: Build rider APK
+        working-directory: mobile
+        run: |
+          flutter build apk --release \
+            -t lib/main_rider.dart \
+            --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://kwema-ride-app-production.up.railway.app' }}
+          mv build/app/outputs/flutter-apk/app-release.apk kwema-rider.apk
+
+      - name: Build driver APK
+        working-directory: mobile
+        run: |
+          flutter build apk --release \
+            -t lib/main_driver.dart \
+            --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://kwema-ride-app-production.up.railway.app' }}
+          mv build/app/outputs/flutter-apk/app-release.apk kwema-driver.apk
+
+      - name: Report sizes
+        working-directory: mobile
+        run: ls -lh kwema-*.apk
+
+      # Artifacts are kept even when the release step is skipped, so a
+      # workflow_dispatch run without a tag still produces something usable.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: |
+            mobile/kwema-rider.apk
+            mobile/kwema-driver.apk
+            mobile/analyze.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+          name: Kwema Ride ${{ github.event.inputs.release_tag || github.ref_name }}
+          body: |
+            Rider and driver apps for Android.
+
+            **Installing:** Android will warn about installing outside the
+            Play Store. Allow "Install unknown apps" for your browser, then
+            open the downloaded file.
+
+            These builds are signed with a debug key, which is fine for
+            direct distribution but cannot be uploaded to the Play Store.
+            A release keystore is needed for that.
+          files: |
+            mobile/kwema-rider.apk
+            mobile/kwema-driver.apk
+          fail_on_unmatched_files: true
