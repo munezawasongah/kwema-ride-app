@@ -51,7 +51,9 @@ class KwemaDriverApp extends ConsumerWidget {
       darkTheme: KwemaTheme.dark(),
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: const [
+      // Deliberately not const: the Global*Localizations delegates are not
+      // const expressions, so a const list here fails to compile.
+      localizationsDelegates: <LocalizationsDelegate<dynamic>>[
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

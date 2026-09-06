@@ -81,7 +81,7 @@ class RideTrackingSheet extends ConsumerWidget {
                       child: Text(
                         ride.driver!.name.isEmpty
                             ? '?'
-                            : ride.driver!.name.characters.first.toUpperCase(),
+                            : ride.driver!.name.substring(0, 1).toUpperCase(),
                         style: const TextStyle(
                             color: Colors.white, fontWeight: FontWeight.w700),
                       ),

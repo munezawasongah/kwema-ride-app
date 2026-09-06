@@ -31,7 +31,7 @@ jobs:
 
       # Flutter's Android toolchain needs a JDK; 17 is what current Gradle
       # expects. Leaving this to the runner default has broken builds before.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -48,13 +48,26 @@ jobs:
       # platform scaffolding is generated rather than committed, because it is
       # large, noisy in diffs, and regenerable. `flutter create` on an existing
       # directory adds the missing platform files and leaves lib/ untouched.
+      # `flutter create --overwrite` regenerates pubspec.yaml from the default
+      # template, which silently wipes every dependency and makes the whole
+      # project fail to resolve its imports. The overwrite flag is needed for
+      # the platform files, so pubspec is saved and restored around it.
       - name: Generate Android platform files
         working-directory: mobile
         run: |
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          cp analysis_options.yaml /tmp/analysis_options.yaml.bak
+
           flutter create --platforms=android \
             --org tz.co.kwemaride \
             --project-name kwema_ride \
             --overwrite .
+
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+          cp /tmp/analysis_options.yaml.bak analysis_options.yaml
+
+          echo "--- restored pubspec dependencies ---"
+          grep -A 20 '^dependencies:' pubspec.yaml
 
       # The Maps SDK key is injected at build time from a repository secret so
       # it never sits in the repo. This is the Android-restricted key (SHA-1 +
@@ -76,7 +89,19 @@ jobs:
 
       - name: Install dependencies
         working-directory: mobile
-        run: flutter pub get
+        run: |
+          flutter pub get
+          # A pubspec stripped of its dependencies still resolves
+          # "successfully" — it just installs nothing, and the failure only
+          # surfaces later as hundreds of unresolved imports. Assert that a
+          # package which must be present actually is.
+          test -f .dart_tool/package_config.json \
+            || { echo "::error::pub get produced no package_config"; exit 1; }
+          for pkg in flutter_riverpod dio google_maps_flutter intl; do
+            grep -q "\"$pkg\"" .dart_tool/package_config.json \
+              || { echo "::error::$pkg missing - pubspec was clobbered"; exit 1; }
+          done
+          echo "dependency resolution OK"
 
       # Reported but not gate-keeping: this is the first CI run of code that
       # was never compiled locally, and a blocked pipeline would hide the
