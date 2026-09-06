@@ -13,6 +13,7 @@ import { RidesModule } from './rides/rides.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
 import { HealthController } from './health/health.controller';
+import { StatusController } from './health/status.controller';
 import { JobsService } from './common/jobs.service';
 
 @Module({
@@ -56,7 +57,7 @@ import { JobsService } from './common/jobs.service';
     RealtimeModule,
     PaymentsModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, StatusController],
   providers: [
     JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },

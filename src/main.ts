@@ -10,7 +10,7 @@
 
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, RequestMethod } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import type { Request } from 'express';
@@ -53,7 +53,15 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.setGlobalPrefix('api', { exclude: ['health', 'healthz'] });
+  // The status page and health probes sit outside the /api prefix so the
+  // root URL and Railway's healthcheck resolve without it.
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: '/', method: RequestMethod.GET },
+      { path: 'health', method: RequestMethod.GET },
+      { path: 'healthz', method: RequestMethod.GET },
+    ],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
