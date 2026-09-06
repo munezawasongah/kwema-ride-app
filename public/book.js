@@ -62,7 +62,7 @@
   // =================================================================
   // Login
   // =================================================================
-  function renderLogin(error) {
+  function renderLogin(error, keepPhone) {
     panel.innerHTML =
       '<h2 style="font-size:22px;font-weight:800;margin-bottom:6px">' +
         (kwemaLang() === 'fr' ? 'Connexion' : kwemaLang() === 'en' ? 'Sign in' : 'Ingia') + '</h2>' +
@@ -72,7 +72,8 @@
          : 'Tutakutumia msimbo kwa SMS.') + '</p>' +
       (error ? msg(error, 'err') : '') +
       '<label>' + (kwemaLang() === 'fr' ? 'Numéro de téléphone' : kwemaLang() === 'en' ? 'Phone number' : 'Namba ya simu') + '</label>' +
-      '<div class="field"><input id="phone" value="+255" inputmode="tel"></div>' +
+      '<div class="field"><input id="phone" value="' + (keepPhone || '+255') +
+        '" inputmode="tel"></div>' +
       '<button class="btn btn-primary" style="width:100%" id="send">' +
         (kwemaLang() === 'fr' ? 'Envoyer le code' : kwemaLang() === 'en' ? 'Send code' : 'Tuma msimbo') +
       '</button>';
@@ -85,12 +86,28 @@
           : 'Tumia muundo +255XXXXXXXXX');
       }
       try {
-        await api('/api/auth/otp/request', {
+        const out = await api('/api/auth/otp/request', {
           method: 'POST', body: JSON.stringify({ phone }),
         });
+
+        // The endpoint returns 201 with sent:false when the 60s resend
+        // cooldown is still running. Advancing to the code screen anyway —
+        // which an earlier version did — showed a code prompt for an SMS
+        // that was never sent, with nothing explaining why.
+        if (out && out.sent === false) {
+          const wait = out.retryAfter || 60;
+          return renderLogin(
+            kwemaLang() === 'fr'
+              ? 'Un code a déjà été envoyé. Réessayez dans ' + wait + ' s.'
+              : kwemaLang() === 'en'
+              ? 'A code was already sent. Try again in ' + wait + 's.'
+              : 'Msimbo tayari umetumwa. Jaribu tena baada ya sekunde ' + wait + '.',
+            phone,
+          );
+        }
         renderOtp(phone);
       } catch (e) {
-        renderLogin(e.message);
+        renderLogin(e.message, phone);
       }
     });
   }
@@ -173,7 +190,14 @@
               ...(state.pickup ? { lat: state.pickup.lat, lng: state.pickup.lng } : {}),
             }),
           });
-          if (!list.length) { box.hidden = true; return; }
+          if (!list.length) {
+            box.innerHTML = '<div style="color:var(--muted);cursor:default">' +
+              (kwemaLang() === 'fr' ? 'Aucun résultat'
+               : kwemaLang() === 'en' ? 'No results'
+               : 'Hakuna matokeo') + '</div>';
+            box.hidden = false;
+            return;
+          }
           box.innerHTML = list.map((s) =>
             '<div data-id="' + s.placeId + '"><strong>' + s.primary + '</strong>' +
             '<small>' + s.secondary + '</small></div>').join('');
@@ -187,7 +211,15 @@
               if (detail && detail.point) onPick(detail.point, input.value);
             });
           });
-        } catch { box.hidden = true; }
+        } catch (err) {
+          // Silently hiding the box made a failing Places key look identical
+          // to "no results", which is what made this hard to diagnose.
+          box.innerHTML = '<div style="color:var(--stop);cursor:default">' +
+            (kwemaLang() === 'fr' ? 'Recherche indisponible'
+             : kwemaLang() === 'en' ? 'Search unavailable'
+             : 'Utafutaji haupatikani') + '</div>';
+          box.hidden = false;
+        }
       }, 350);
     });
 
@@ -476,8 +508,10 @@
     state.config = cfg;
     const scripts = [];
     if (cfg.mapsBrowserKey) {
+      // loading=async silences Google's performance warning and is their
+      // documented pattern for script-tag loading.
       scripts.push('https://maps.googleapis.com/maps/api/js?key=' +
-        encodeURIComponent(cfg.mapsBrowserKey) + '&libraries=geometry');
+        encodeURIComponent(cfg.mapsBrowserKey) + '&libraries=geometry&loading=async');
     }
     scripts.push('/socket.io/socket.io.js');
 
