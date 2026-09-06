@@ -28,7 +28,10 @@ export class HealthController {
     return this.liveness();
   }
 
-  @Get('api/health/ready')
+  // No 'api/' prefix here: the global prefix in main.ts already adds it, and
+  // only /health and /healthz are excluded from it. Writing it out produced
+  // /api/api/health/ready.
+  @Get('health/ready')
   async readiness() {
     const checks: Record<string, string> = {};
 
