@@ -5,6 +5,8 @@ import { AuthModule } from '../auth/auth.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { AzamPayProvider, SelcomProvider } from './mobile-money.providers';
+import { DpoCardProvider } from './card.provider';
+import { CashService } from './cash.service';
 import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
@@ -14,7 +16,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     AuthModule,
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, AzamPayProvider, SelcomProvider],
-  exports: [PaymentsService],
+  providers: [PaymentsService, AzamPayProvider, SelcomProvider, DpoCardProvider, CashService],
+  exports: [PaymentsService, CashService],
 })
 export class PaymentsModule {}

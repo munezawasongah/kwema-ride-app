@@ -18,6 +18,7 @@ import * as crypto from 'node:crypto';
 
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { AzamPayProvider, SelcomProvider, MobileMoneyProvider, Mno } from './mobile-money.providers';
+import { DpoCardProvider } from './card.provider';
 
 @Injectable()
 export class PaymentsService {
@@ -29,6 +30,7 @@ export class PaymentsService {
     private readonly gateway: RealtimeGateway,
     private readonly azampay: AzamPayProvider,
     private readonly selcom: SelcomProvider,
+    private readonly card: DpoCardProvider,
   ) {}
 
   private provider(name: 'azampay' | 'selcom'): MobileMoneyProvider {
@@ -141,6 +143,169 @@ export class PaymentsService {
         message: 'Tunathibitisha malipo yako...', // "We are confirming your payment..."
       };
     }
+  }
+
+  // -------------------------------------------------------------------
+  // Card
+  // -------------------------------------------------------------------
+
+  /**
+   * Creates a card charge and returns the hosted checkout URL.
+   *
+   * Same ordering discipline as mobile money: the transaction row exists
+   * before the provider is called, so a crash mid-flight still leaves an
+   * intent for reconciliation to find.
+   */
+  async initiateCardPayment(userId: string, rideId: string, phone: string) {
+    const ride = await this.loadPayableRide(userId, rideId);
+    if ((ride as any).alreadyPaid) return ride;
+
+    const amountCents = Number(ride.final_fare_cents ?? ride.quoted_fare_cents);
+    const externalReference = `KWM-${ride.reference}-${crypto
+      .randomBytes(4)
+      .toString('hex')
+      .toUpperCase()}`;
+
+    await this.db.query(
+      `INSERT INTO transactions
+         (ride_id, user_id, direction, method, aggregator,
+          amount_cents, status, external_reference, payer_phone)
+       VALUES ($1, $2, 'collection', 'card', 'dpo', $3, 'pending', $4, $5)`,
+      [rideId, userId, amountCents, externalReference, phone],
+    );
+
+    const publicUrl = process.env.PUBLIC_BASE_URL ?? '';
+    const result = await this.card.createCharge({
+      externalReference,
+      amountCents,
+      rideReference: ride.reference,
+      customerPhone: phone,
+      redirectUrl: `${publicUrl}/api/payments/card/return?ref=${externalReference}`,
+      backUrl: `${publicUrl}/api/payments/card/cancelled?ref=${externalReference}`,
+    });
+
+    await this.db.query(
+      `UPDATE transactions
+          SET status = $2, aggregator_txn_id = $3
+        WHERE external_reference = $1`,
+      [
+        externalReference,
+        result.accepted ? 'processing' : 'failed',
+        result.transactionToken ?? null,
+      ],
+    );
+
+    if (!result.accepted) {
+      throw new BadRequestException(result.message ?? 'card_setup_failed');
+    }
+
+    return {
+      reference: externalReference,
+      // The app opens this in a WebView. Card details are entered on the
+      // provider's page, under their certificate, never in our UI.
+      checkoutUrl: result.checkoutUrl,
+      status: 'processing',
+    };
+  }
+
+  /**
+   * Confirms a card payment with the provider and settles the ride.
+   *
+   * Deliberately ignores whatever the redirect claimed. The redirect URL is
+   * user-controllable, so treating it as proof of payment would let anyone
+   * mark a ride paid by visiting a crafted link.
+   */
+  async verifyCardPayment(userId: string, reference: string) {
+    const [txn] = await this.db.query(
+      `SELECT id, ride_id, user_id, amount_cents, status, aggregator_txn_id
+         FROM transactions WHERE external_reference = $1`,
+      [reference],
+    );
+    if (!txn) throw new NotFoundException('transaction not found');
+    if (txn.user_id !== userId) throw new ForbiddenException('not your payment');
+    if (txn.status === 'success') return { status: 'success' };
+
+    const verification = await this.card.verify(txn.aggregator_txn_id);
+
+    if (verification.status === 'success') {
+      // Amount check before crediting: the hosted page is the provider's, but
+      // the amount that comes back still gets compared to what we asked for.
+      if (
+        verification.amountCents !== undefined &&
+        Math.abs(verification.amountCents - Number(txn.amount_cents)) > 100
+      ) {
+        this.logger.error(`card amount mismatch ref=${reference}`);
+        await this.db.query(
+          `UPDATE transactions SET status = 'failed',
+                  failure_reason = 'amount_mismatch' WHERE id = $1`,
+          [txn.id],
+        );
+        return { status: 'failed', reason: 'amount_mismatch' };
+      }
+
+      await this.db.transaction(async (manager) => {
+        await manager.query(
+          `UPDATE transactions
+              SET status = 'success', settled_at = now(),
+                  mno_receipt = $2, callback_payload = $3
+            WHERE id = $1`,
+          [
+            txn.id,
+            verification.cardLastFour ? `****${verification.cardLastFour}` : null,
+            JSON.stringify({
+              brand: verification.cardBrand,
+              lastFour: verification.cardLastFour,
+            }),
+          ],
+        );
+        await manager.query(`UPDATE rides SET is_paid = TRUE WHERE id = $1`, [
+          txn.ride_id,
+        ]);
+        await manager.query(
+          `UPDATE drivers d
+              SET wallet_balance_cents = d.wallet_balance_cents + r.driver_earnings_cents
+             FROM rides r
+            WHERE r.id = $1 AND d.id = r.driver_id`,
+          [txn.ride_id],
+        );
+      });
+
+      this.gateway.server.to(`ride:${txn.ride_id}`).emit('payment:status', {
+        rideId: txn.ride_id,
+        reference,
+        status: 'success',
+        method: 'card',
+      });
+      return { status: 'success' };
+    }
+
+    if (verification.status === 'failed') {
+      await this.db.query(
+        `UPDATE transactions SET status = 'failed', failure_reason = $2
+          WHERE id = $1`,
+        [txn.id, verification.reason ?? 'declined'],
+      );
+    }
+
+    return { status: verification.status, reason: verification.reason };
+  }
+
+  /** Shared guard for both card and mobile money initiation. */
+  private async loadPayableRide(userId: string, rideId: string) {
+    const [ride] = await this.db.query(
+      `SELECT id, reference, rider_id, status, final_fare_cents,
+              quoted_fare_cents, is_paid
+         FROM rides WHERE id = $1`,
+      [rideId],
+    );
+    if (!ride) throw new NotFoundException('ride not found');
+    if (ride.rider_id !== userId) throw new ForbiddenException('not your ride');
+
+    const amountCents = Number(ride.final_fare_cents ?? ride.quoted_fare_cents);
+    if (!amountCents || amountCents <= 0) {
+      throw new BadRequestException('ride has no payable amount yet');
+    }
+    return ride;
   }
 
   // -------------------------------------------------------------------

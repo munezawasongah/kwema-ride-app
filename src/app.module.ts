@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { PricingModule } from './pricing/pricing.module';
+import { MapsModule } from './maps/maps.module';
 import { RidesModule } from './rides/rides.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
@@ -51,6 +52,7 @@ import { JobsService } from './common/jobs.service';
 
     AuthModule,
     UsersModule,
+    MapsModule,
     DispatchModule,
     PricingModule,
     RidesModule,

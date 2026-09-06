@@ -62,6 +62,20 @@ const RECOMMENDED: Requirement[] = [
     key: 'AZAMPAY_CLIENT_ID',
     description: 'Mobile money collection is unavailable until aggregator credentials are set.',
   },
+  {
+    key: 'GOOGLE_MAPS_SERVER_KEY',
+    description:
+      'Routing, geocoding and place search fall back to straight-line estimates without it.',
+  },
+  {
+    key: 'DPO_COMPANY_TOKEN',
+    description: 'Card payments are unavailable until DPO credentials are set.',
+  },
+  {
+    key: 'PUBLIC_BASE_URL',
+    description:
+      'Required for card 3-D Secure redirects. Set to the deployed https URL.',
+  },
 ];
 
 export function validateEnvironment(): void {

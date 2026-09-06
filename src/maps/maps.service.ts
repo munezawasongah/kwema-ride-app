@@ -1,0 +1,416 @@
+/**
+ * Google Maps integration.
+ *
+ * Everything here is server-side, and that is the point. The mobile apps hold
+ * a separate, bundle-restricted key that can only render map tiles; Directions,
+ * Distance Matrix, Geocoding and Places all go through this service. Shipping a
+ * Directions-capable key in an APK means anyone who unpacks it can spend your
+ * Maps budget, and APKs get unpacked.
+ *
+ * Cost control is a first-class concern, not an optimisation. Directions and
+ * Distance Matrix are billed per call, a busy evening in Dar is tens of
+ * thousands of quote requests, and riders re-quote constantly as they drag the
+ * pin. Three mechanisms hold that down:
+ *
+ *   1. Route results are cached in Redis on a coordinate grid snapped to ~50 m.
+ *      Two riders standing on the same block asking for the same destination
+ *      hit one billed call, not two.
+ *   2. Distance Matrix is called only for the top few dispatch candidates.
+ *      Per-candidate matrix calls would blow both the latency budget and the
+ *      bill.
+ *   3. A haversine fallback keeps the product working when Maps is unreachable
+ *      or the daily cap is hit — a degraded fare estimate beats a dead app.
+ */
+
+import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom, timeout } from 'rxjs';
+import Redis from 'ioredis';
+
+import { REDIS } from '../common/redis.module';
+import { VehicleCategory } from '../dispatch/dispatch.service';
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface RouteResult {
+  distanceMetres: number;
+  durationSeconds: number;
+  /** Duration with live traffic, when Google returns it. */
+  durationInTrafficSeconds?: number;
+  /** Encoded polyline for drawing the route on the rider's map. */
+  polyline: string;
+  /** True when this came from the fallback estimator, not from Google. */
+  isEstimate: boolean;
+}
+
+export interface PlaceSuggestion {
+  placeId: string;
+  primary: string;
+  secondary: string;
+}
+
+const CACHE_TTL_ROUTE = 300; // 5 min — traffic moves, but not that fast
+const CACHE_TTL_PLACE = 86_400;
+const GRID_PRECISION = 0.0005; // ~55 m at the equator
+
+/**
+ * Bounding box for Tanzania, with a margin. Requests outside it are rejected
+ * before they cost anything — it is the cheapest possible abuse filter, and a
+ * pickup in another country is always a bug or a probe.
+ */
+const TZ_BOUNDS = { minLat: -12.0, maxLat: 0.0, minLng: 29.0, maxLng: 41.0 };
+
+@Injectable()
+export class MapsService {
+  private readonly logger = new Logger(MapsService.name);
+  private readonly key = process.env.GOOGLE_MAPS_SERVER_KEY;
+  private readonly base = 'https://maps.googleapis.com/maps/api';
+
+  constructor(
+    private readonly http: HttpService,
+    @Inject(REDIS) private readonly redis: Redis,
+  ) {}
+
+  // ===================================================================
+  // Routing
+  // ===================================================================
+
+  /**
+   * Route between two points. This is the authoritative source of distance
+   * and duration for a fare quote — the client's own figure is never trusted,
+   * because a modified app could otherwise quote a 12 km trip as 2 km.
+   */
+  async route(
+    origin: LatLng,
+    destination: LatLng,
+    category: VehicleCategory,
+  ): Promise<RouteResult> {
+    this.assertInBounds(origin, 'origin');
+    this.assertInBounds(destination, 'destination');
+
+    const cacheKey = `route:${this.gridKey(origin)}:${this.gridKey(destination)}:${category}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    if (!this.key) return this.estimate(origin, destination, category);
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get(`${this.base}/directions/json`, {
+            params: {
+              origin: `${origin.lat},${origin.lng}`,
+              destination: `${destination.lat},${destination.lng}`,
+              key: this.key,
+              region: 'tz',
+              // Motorcycles legitimately use routes cars cannot. Google has no
+              // motorcycle mode outside a few countries, so bicycling is the
+              // closest proxy for boda routing; it avoids motorways, which is
+              // also where boda are frequently prohibited.
+              mode: category === 'boda' ? 'bicycling' : 'driving',
+              departure_time: 'now',
+              traffic_model: 'best_guess',
+              alternatives: 'false',
+            },
+          })
+          .pipe(timeout(6000)),
+      );
+
+      const data = response.data;
+      if (data.status !== 'OK' || !data.routes?.length) {
+        this.logger.warn(`directions returned ${data.status}, falling back`);
+        return this.estimate(origin, destination, category);
+      }
+
+      const leg = data.routes[0].legs[0];
+      const result: RouteResult = {
+        distanceMetres: leg.distance.value,
+        durationSeconds: leg.duration.value,
+        durationInTrafficSeconds: leg.duration_in_traffic?.value,
+        polyline: data.routes[0].overview_polyline.points,
+        isEstimate: false,
+      };
+
+      await this.redis.set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_ROUTE);
+      return result;
+    } catch (err) {
+      this.logger.error(`directions failed: ${(err as Error).message}`);
+      return this.estimate(origin, destination, category);
+    }
+  }
+
+  /**
+   * Driving ETA from several drivers to one pickup, in a single billed call.
+   * Capped at the dispatch shortlist — Distance Matrix bills per
+   * origin-destination pair, so an uncapped call is an uncapped invoice.
+   */
+  async etaMatrix(
+    origins: LatLng[],
+    destination: LatLng,
+    category: VehicleCategory,
+  ): Promise<number[]> {
+    if (origins.length === 0) return [];
+
+    const capped = origins.slice(0, 5);
+    if (!this.key) {
+      return capped.map((o) => this.estimateSeconds(o, destination, category));
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get(`${this.base}/distancematrix/json`, {
+            params: {
+              origins: capped.map((o) => `${o.lat},${o.lng}`).join('|'),
+              destinations: `${destination.lat},${destination.lng}`,
+              key: this.key,
+              region: 'tz',
+              mode: category === 'boda' ? 'bicycling' : 'driving',
+              departure_time: 'now',
+            },
+          })
+          .pipe(timeout(5000)),
+      );
+
+      const rows = response.data?.rows ?? [];
+      return capped.map((origin, i) => {
+        const element = rows[i]?.elements?.[0];
+        if (element?.status !== 'OK') {
+          return this.estimateSeconds(origin, destination, category);
+        }
+        return element.duration_in_traffic?.value ?? element.duration.value;
+      });
+    } catch (err) {
+      this.logger.warn(`distance matrix failed: ${(err as Error).message}`);
+      return capped.map((o) => this.estimateSeconds(o, destination, category));
+    }
+  }
+
+  // ===================================================================
+  // Places
+  // ===================================================================
+
+  /**
+   * Destination autocomplete, proxied so the key stays server-side.
+   *
+   * Results are biased to the rider's current position and restricted to
+   * Tanzania. Session tokens matter for billing: Google charges autocomplete
+   * per session rather than per keystroke when a token is supplied, and a
+   * rider typing "Mlimani" generates seven requests.
+   */
+  async autocomplete(
+    input: string,
+    near: LatLng | null,
+    sessionToken: string,
+    language: string,
+  ): Promise<PlaceSuggestion[]> {
+    if (input.trim().length < 2) return [];
+    if (!this.key) return [];
+
+    const cacheKey = `places:${language}:${input.toLowerCase().trim()}:${
+      near ? this.gridKey(near) : 'any'
+    }`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get(`${this.base}/place/autocomplete/json`, {
+            params: {
+              input,
+              key: this.key,
+              components: 'country:tz',
+              sessiontoken: sessionToken,
+              language: ['sw', 'en', 'fr'].includes(language) ? language : 'sw',
+              ...(near
+                ? { location: `${near.lat},${near.lng}`, radius: 30000 }
+                : {}),
+            },
+          })
+          .pipe(timeout(4000)),
+      );
+
+      const suggestions: PlaceSuggestion[] = (response.data?.predictions ?? []).map(
+        (p: any) => ({
+          placeId: p.place_id,
+          primary: p.structured_formatting?.main_text ?? p.description,
+          secondary: p.structured_formatting?.secondary_text ?? '',
+        }),
+      );
+
+      await this.redis.set(
+        cacheKey,
+        JSON.stringify(suggestions),
+        'EX',
+        CACHE_TTL_PLACE,
+      );
+      return suggestions;
+    } catch (err) {
+      this.logger.warn(`autocomplete failed: ${(err as Error).message}`);
+      return [];
+    }
+  }
+
+  /** Resolves a place id chosen from autocomplete into coordinates. */
+  async placeDetails(
+    placeId: string,
+    sessionToken: string,
+  ): Promise<{ point: LatLng; address: string } | null> {
+    if (!this.key) return null;
+
+    const cacheKey = `place:detail:${placeId}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get(`${this.base}/place/details/json`, {
+            params: {
+              place_id: placeId,
+              key: this.key,
+              sessiontoken: sessionToken,
+              fields: 'geometry/location,formatted_address,name',
+            },
+          })
+          .pipe(timeout(4000)),
+      );
+
+      const result = response.data?.result;
+      if (!result?.geometry?.location) return null;
+
+      const detail = {
+        point: {
+          lat: result.geometry.location.lat,
+          lng: result.geometry.location.lng,
+        },
+        address: result.formatted_address ?? result.name,
+      };
+
+      // Coordinates of a fixed place do not change; cache them for a week.
+      await this.redis.set(cacheKey, JSON.stringify(detail), 'EX', 604_800);
+      return detail;
+    } catch (err) {
+      this.logger.warn(`place details failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Reverse geocoding for the pickup pin.
+   *
+   * Large parts of Dar have no street addresses in Google's data, so a
+   * reverse geocode often returns something unhelpfully broad like
+   * "Kinondoni". The caller should treat the result as a hint and let the
+   * rider type a landmark, which is how people actually give directions here.
+   */
+  async reverseGeocode(point: LatLng, language: string): Promise<string | null> {
+    this.assertInBounds(point, 'point');
+    if (!this.key) return null;
+
+    const cacheKey = `geocode:${this.gridKey(point)}:${language}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get(`${this.base}/geocode/json`, {
+            params: {
+              latlng: `${point.lat},${point.lng}`,
+              key: this.key,
+              language: ['sw', 'en', 'fr'].includes(language) ? language : 'sw',
+              result_type: 'street_address|premise|point_of_interest|neighborhood',
+            },
+          })
+          .pipe(timeout(4000)),
+      );
+
+      const address = response.data?.results?.[0]?.formatted_address ?? null;
+      if (address) await this.redis.set(cacheKey, address, 'EX', 604_800);
+      return address;
+    } catch (err) {
+      this.logger.warn(`reverse geocode failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  // ===================================================================
+  // Fallback estimation
+  // ===================================================================
+
+  /**
+   * Used when Maps is unreachable. The 1.35 factor converts straight-line to
+   * road distance; it is tuned per city from completed-trip telemetry, and
+   * Dar's peninsular layout makes it higher than a grid city like Dodoma.
+   */
+  private estimate(
+    origin: LatLng,
+    destination: LatLng,
+    category: VehicleCategory,
+  ): RouteResult {
+    const straight = haversineMetres(origin, destination);
+    const distanceMetres = Math.round(straight * 1.35);
+    return {
+      distanceMetres,
+      durationSeconds: this.estimateSeconds(origin, destination, category),
+      polyline: '',
+      isEstimate: true,
+    };
+  }
+
+  private estimateSeconds(
+    origin: LatLng,
+    destination: LatLng,
+    category: VehicleCategory,
+  ): number {
+    const speeds: Record<VehicleCategory, number> = {
+      boda: 22,
+      bajaji: 16,
+      standard: 14,
+      xl: 13,
+      express: 14,
+    };
+    const metres = haversineMetres(origin, destination) * 1.35;
+    return Math.round(metres / ((speeds[category] * 1000) / 3600));
+  }
+
+  // ===================================================================
+  // Helpers
+  // ===================================================================
+
+  /** Snaps coordinates to a ~55 m grid so nearby requests share a cache key. */
+  private gridKey(point: LatLng): string {
+    const lat = Math.round(point.lat / GRID_PRECISION) * GRID_PRECISION;
+    const lng = Math.round(point.lng / GRID_PRECISION) * GRID_PRECISION;
+    return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  }
+
+  private assertInBounds(point: LatLng, label: string): void {
+    if (
+      !Number.isFinite(point.lat) ||
+      !Number.isFinite(point.lng) ||
+      point.lat < TZ_BOUNDS.minLat ||
+      point.lat > TZ_BOUNDS.maxLat ||
+      point.lng < TZ_BOUNDS.minLng ||
+      point.lng > TZ_BOUNDS.maxLng
+    ) {
+      throw new BadRequestException(`${label} is outside the service area`);
+    }
+  }
+}
+
+export function haversineMetres(a: LatLng, b: LatLng): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}

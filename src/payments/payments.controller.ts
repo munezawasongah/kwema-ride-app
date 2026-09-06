@@ -30,6 +30,7 @@ import {
   Req,
   UseGuards,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
@@ -38,6 +39,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Mno } from './mobile-money.providers';
 import { PaymentsService } from './payments.service';
+import { CashService } from './cash.service';
 
 interface CollectDto {
   rideId: string;
@@ -52,6 +54,7 @@ export class PaymentsController {
 
   constructor(
     private readonly payments: PaymentsService,
+    private readonly cash: CashService,
   ) {}
 
   // -------------------------------------------------------------------
@@ -71,6 +74,68 @@ export class PaymentsController {
     }
 
     return this.payments.initiateCollection(user.id, dto.rideId, dto.mno, phone);
+  }
+
+  // -------------------------------------------------------------------
+  // Card
+  // -------------------------------------------------------------------
+
+  /**
+   * Starts a card payment and returns a hosted checkout URL for the app to
+   * open in a WebView. We never accept card fields ourselves — doing so would
+   * pull the whole platform into PCI DSS SAQ-D.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('card/initiate')
+  initiateCard(
+    @CurrentUser() user: { id: string; phone: string },
+    @Body() dto: { rideId: string },
+  ) {
+    if (!dto?.rideId) throw new BadRequestException('rideId is required');
+    return this.payments.initiateCardPayment(user.id, dto.rideId, user.phone);
+  }
+
+  /**
+   * Called by the app once the WebView hits our redirect URL. The redirect is
+   * only a prompt: the outcome is confirmed with the provider server-side.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('card/verify')
+  verifyCard(
+    @CurrentUser() user: { id: string },
+    @Body() dto: { reference: string },
+  ) {
+    if (!dto?.reference) throw new BadRequestException('reference is required');
+    return this.payments.verifyCardPayment(user.id, dto.reference);
+  }
+
+  // -------------------------------------------------------------------
+  // Cash
+  // -------------------------------------------------------------------
+
+  /**
+   * Driver confirms they were handed the cash. Commission is only booked
+   * against their wallet at this point — never automatically on completion,
+   * because a rider who leaves without paying is a real occurrence.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('cash/confirm')
+  confirmCash(
+    @CurrentUser() user: { id: string; driverId?: string },
+    @Body() dto: { rideId: string },
+  ) {
+    if (!user.driverId) throw new ForbiddenException('drivers only');
+    if (!dto?.rideId) throw new BadRequestException('rideId is required');
+    return this.cash.confirmCollection(dto.rideId, user.driverId);
+  }
+
+  /** Driver's current cash-commission debt position. */
+  @UseGuards(JwtAuthGuard)
+  @Get('cash/balance')
+  cashBalance(@CurrentUser() user: { id: string; driverId?: string }) {
+    if (!user.driverId) throw new ForbiddenException('drivers only');
+    return this.cash.debtStatus(user.driverId);
   }
 
   @UseGuards(JwtAuthGuard)
