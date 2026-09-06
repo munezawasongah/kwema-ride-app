@@ -72,6 +72,16 @@ export class MapsController {
       .then((address) => ({ address }));
   }
 
+  /**
+   * Reports what each Google API actually returns. Authenticated, and it
+   * never echoes the key — only whether one is set.
+   */
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Get('diagnostics')
+  diagnostics() {
+    return this.maps.diagnostics();
+  }
+
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('route')
   route(@Body() dto: RouteDto) {

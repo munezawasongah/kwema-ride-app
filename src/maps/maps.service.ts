@@ -68,6 +68,11 @@ export class MapsService {
   private readonly logger = new Logger(MapsService.name);
   private readonly key = process.env.GOOGLE_MAPS_SERVER_KEY;
   private readonly base = 'https://maps.googleapis.com/maps/api';
+  // Places API (New) lives on a different host from the classic endpoints.
+  // The legacy place/autocomplete path returns an empty result set — not an
+  // error — for projects created after Google's March 2025 legacy cutover,
+  // which is exactly how it fails silently.
+  private readonly placesBase = 'https://places.googleapis.com';
 
   constructor(
     private readonly http: HttpService,
@@ -121,7 +126,11 @@ export class MapsService {
 
       const data = response.data;
       if (data.status !== 'OK' || !data.routes?.length) {
-        this.logger.warn(`directions returned ${data.status}, falling back`);
+        this.logger.warn(
+          `directions returned ${data.status}` +
+            (data.error_message ? `: ${data.error_message}` : '') +
+            ' — falling back to estimate',
+        );
         return this.estimate(origin, destination, category);
       }
 
@@ -136,8 +145,10 @@ export class MapsService {
 
       await this.redis.set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_ROUTE);
       return result;
-    } catch (err) {
-      this.logger.error(`directions failed: ${(err as Error).message}`);
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.error_message ?? (err as Error).message;
+      this.logger.error(`directions failed: ${detail}`);
       return this.estimate(origin, destination, category);
     }
   }
@@ -210,7 +221,7 @@ export class MapsService {
     if (input.trim().length < 2) return [];
     if (!this.key) return [];
 
-    const cacheKey = `places:${language}:${input.toLowerCase().trim()}:${
+    const cacheKey = `places:v2:${language}:${input.toLowerCase().trim()}:${
       near ? this.gridKey(near) : 'any'
     }`;
     const cached = await this.redis.get(cacheKey);
@@ -219,28 +230,46 @@ export class MapsService {
     try {
       const response = await firstValueFrom(
         this.http
-          .get(`${this.base}/place/autocomplete/json`, {
-            params: {
+          .post(
+            `${this.placesBase}/v1/places:autocomplete`,
+            {
               input,
-              key: this.key,
-              components: 'country:tz',
-              sessiontoken: sessionToken,
-              language: ['sw', 'en', 'fr'].includes(language) ? language : 'sw',
+              languageCode: ['sw', 'en', 'fr'].includes(language) ? language : 'sw',
+              regionCode: 'TZ',
+              includedRegionCodes: ['tz'],
+              sessionToken,
               ...(near
-                ? { location: `${near.lat},${near.lng}`, radius: 30000 }
+                ? {
+                    locationBias: {
+                      circle: {
+                        center: { latitude: near.lat, longitude: near.lng },
+                        radius: 30000,
+                      },
+                    },
+                  }
                 : {}),
             },
-          })
-          .pipe(timeout(4000)),
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': this.key,
+              },
+            },
+          )
+          .pipe(timeout(5000)),
       );
 
-      const suggestions: PlaceSuggestion[] = (response.data?.predictions ?? []).map(
-        (p: any) => ({
-          placeId: p.place_id,
-          primary: p.structured_formatting?.main_text ?? p.description,
-          secondary: p.structured_formatting?.secondary_text ?? '',
-        }),
-      );
+      const suggestions: PlaceSuggestion[] = (response.data?.suggestions ?? [])
+        .filter((s: any) => s.placePrediction)
+        .map((s: any) => ({
+          placeId: s.placePrediction.placeId,
+          primary:
+            s.placePrediction.structuredFormat?.mainText?.text ??
+            s.placePrediction.text?.text ??
+            '',
+          secondary:
+            s.placePrediction.structuredFormat?.secondaryText?.text ?? '',
+        }));
 
       await this.redis.set(
         cacheKey,
@@ -249,8 +278,13 @@ export class MapsService {
         CACHE_TTL_PLACE,
       );
       return suggestions;
-    } catch (err) {
-      this.logger.warn(`autocomplete failed: ${(err as Error).message}`);
+    } catch (err: any) {
+      // Google's error body names the actual cause (API not enabled, key
+      // restriction, billing). Returning an empty array without logging it
+      // is what made this failure mode invisible for so long.
+      const detail =
+        err?.response?.data?.error?.message ?? (err as Error).message;
+      this.logger.error(`places autocomplete failed: ${detail}`);
       return [];
     }
   }
@@ -262,40 +296,43 @@ export class MapsService {
   ): Promise<{ point: LatLng; address: string } | null> {
     if (!this.key) return null;
 
-    const cacheKey = `place:detail:${placeId}`;
+    const cacheKey = `place:v2:detail:${placeId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     try {
       const response = await firstValueFrom(
         this.http
-          .get(`${this.base}/place/details/json`, {
-            params: {
-              place_id: placeId,
-              key: this.key,
-              sessiontoken: sessionToken,
-              fields: 'geometry/location,formatted_address,name',
+          .get(`${this.placesBase}/v1/places/${encodeURIComponent(placeId)}`, {
+            headers: {
+              'X-Goog-Api-Key': this.key,
+              // The field mask is mandatory on the new API and also governs
+              // billing: request only these three and the call stays in the
+              // cheapest SKU tier.
+              'X-Goog-FieldMask': 'location,formattedAddress,displayName',
+              ...(sessionToken ? { 'X-Goog-Session-Token': sessionToken } : {}),
             },
           })
-          .pipe(timeout(4000)),
+          .pipe(timeout(5000)),
       );
 
-      const result = response.data?.result;
-      if (!result?.geometry?.location) return null;
+      const result = response.data;
+      if (!result?.location) return null;
 
       const detail = {
         point: {
-          lat: result.geometry.location.lat,
-          lng: result.geometry.location.lng,
+          lat: result.location.latitude,
+          lng: result.location.longitude,
         },
-        address: result.formatted_address ?? result.name,
+        address: result.formattedAddress ?? result.displayName?.text ?? '',
       };
 
-      // Coordinates of a fixed place do not change; cache them for a week.
       await this.redis.set(cacheKey, JSON.stringify(detail), 'EX', 604_800);
       return detail;
-    } catch (err) {
-      this.logger.warn(`place details failed: ${(err as Error).message}`);
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.error?.message ?? (err as Error).message;
+      this.logger.error(`place details failed: ${detail}`);
       return null;
     }
   }
@@ -337,6 +374,110 @@ export class MapsService {
       this.logger.warn(`reverse geocode failed: ${(err as Error).message}`);
       return null;
     }
+  }
+
+  // ===================================================================
+  // Diagnostics
+  // ===================================================================
+
+  /**
+   * Calls each Google API once and reports what came back.
+   *
+   * This exists because Google's failure modes are quiet. A key that is not
+   * authorised for an API returns an empty result set rather than an error,
+   * so a misconfigured key is indistinguishable from "no places matched"
+   * unless you go looking. This surfaces the real status message.
+   *
+   * Never returns the key itself — only whether one is configured.
+   */
+  async diagnostics(): Promise<Record<string, unknown>> {
+    const out: Record<string, unknown> = {
+      serverKeyConfigured: Boolean(this.key),
+      browserKeyConfigured: Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY),
+    };
+    if (!this.key) return out;
+
+    const dar = { lat: -6.8161, lng: 39.2894 };
+    const mlimani = { lat: -6.7724, lng: 39.2083 };
+
+    // --- Places API (New) ---
+    try {
+      const r = await firstValueFrom(
+        this.http
+          .post(
+            `${this.placesBase}/v1/places:autocomplete`,
+            { input: 'Mlimani', regionCode: 'TZ', includedRegionCodes: ['tz'] },
+            { headers: { 'X-Goog-Api-Key': this.key } },
+          )
+          .pipe(timeout(6000)),
+      );
+      const n = (r.data?.suggestions ?? []).length;
+      out.placesNew = n > 0 ? `ok (${n} results)` : 'reachable but 0 results';
+    } catch (err: any) {
+      out.placesNew =
+        'FAIL: ' + (err?.response?.data?.error?.message ?? err.message);
+    }
+
+    // --- Geocoding ---
+    try {
+      const r = await firstValueFrom(
+        this.http
+          .get(`${this.base}/geocode/json`, {
+            params: { latlng: `${dar.lat},${dar.lng}`, key: this.key },
+          })
+          .pipe(timeout(6000)),
+      );
+      out.geocoding =
+        r.data?.status === 'OK'
+          ? 'ok'
+          : `${r.data?.status}: ${r.data?.error_message ?? 'no detail'}`;
+    } catch (err: any) {
+      out.geocoding = 'FAIL: ' + err.message;
+    }
+
+    // --- Directions (legacy SKU) ---
+    try {
+      const r = await firstValueFrom(
+        this.http
+          .get(`${this.base}/directions/json`, {
+            params: {
+              origin: `${mlimani.lat},${mlimani.lng}`,
+              destination: `${dar.lat},${dar.lng}`,
+              key: this.key,
+            },
+          })
+          .pipe(timeout(6000)),
+      );
+      out.directions =
+        r.data?.status === 'OK'
+          ? `ok (${Math.round(r.data.routes[0].legs[0].distance.value / 100) / 10} km)`
+          : `${r.data?.status}: ${r.data?.error_message ?? 'no detail'}`;
+    } catch (err: any) {
+      out.directions = 'FAIL: ' + err.message;
+    }
+
+    // --- Distance Matrix (legacy SKU) ---
+    try {
+      const r = await firstValueFrom(
+        this.http
+          .get(`${this.base}/distancematrix/json`, {
+            params: {
+              origins: `${mlimani.lat},${mlimani.lng}`,
+              destinations: `${dar.lat},${dar.lng}`,
+              key: this.key,
+            },
+          })
+          .pipe(timeout(6000)),
+      );
+      out.distanceMatrix =
+        r.data?.status === 'OK'
+          ? `ok (${r.data.rows?.[0]?.elements?.[0]?.status})`
+          : `${r.data?.status}: ${r.data?.error_message ?? 'no detail'}`;
+    } catch (err: any) {
+      out.distanceMatrix = 'FAIL: ' + err.message;
+    }
+
+    return out;
   }
 
   // ===================================================================
