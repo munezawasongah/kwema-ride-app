@@ -102,6 +102,8 @@ jobs:
               || { echo "::error::$pkg missing - pubspec was clobbered"; exit 1; }
           done
           echo "dependency resolution OK"
+          echo "--- resolved versions ---"
+          flutter pub deps --style=compact --no-dev 2>/dev/null | head -30
 
       # Reported but not gate-keeping: this is the first CI run of code that
       # was never compiled locally, and a blocked pipeline would hide the

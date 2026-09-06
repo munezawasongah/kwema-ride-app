@@ -20,7 +20,6 @@ dependencies:
   # Maps and location
   google_maps_flutter: ^2.9.0
   geolocator: ^13.0.2
-  flutter_polyline_points: ^2.1.0
 
   # Networking
   dio: ^5.7.0
@@ -34,12 +33,14 @@ dependencies:
 
   # UI
   google_fonts: ^6.2.1
-  intl: ^0.19.0
+  # Must track whatever flutter_localizations pins; the SDK constraint wins.
+  intl: ^0.20.3
   url_launcher: ^6.3.1
 
-  # Card payments open the provider's hosted 3-D Secure page in a WebView.
-  # Card fields are never rendered by this app.
-  webview_flutter: ^4.10.0
+  # Card payments open the provider's hosted 3-D Secure page via url_launcher
+  # in an external browser rather than an in-app WebView. Card fields are
+  # never rendered by this app either way, which is what keeps it out of
+  # PCI DSS scope.
 
 dev_dependencies:
   flutter_test:
