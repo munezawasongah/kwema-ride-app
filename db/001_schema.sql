@@ -319,11 +319,30 @@ CREATE TABLE locations (
     PRIMARY KEY (id, recorded_at)
 ) PARTITION BY RANGE (recorded_at);
 
--- Create partitions ahead of time (pg_partman or a nightly cron in prod).
-CREATE TABLE locations_2026_09 PARTITION OF locations
-    FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
-CREATE TABLE locations_2026_10 PARTITION OF locations
-    FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+-- Partitions are created relative to deploy time, not hardcoded dates: a
+-- hardcoded partition means the first insert after that month silently fails,
+-- and since the fare is computed from the breadcrumb trail, that is a billing
+-- outage. Twenty-four months of headroom; the monthly cron in jobs.service.ts
+-- keeps extending it.
+DO $$
+DECLARE
+    start_date DATE;
+    end_date   DATE;
+    part_name  TEXT;
+    i          INT;
+BEGIN
+    FOR i IN -1..23 LOOP
+        start_date := (date_trunc('month', now()) + (i || ' months')::interval)::date;
+        end_date   := (date_trunc('month', now()) + ((i + 1) || ' months')::interval)::date;
+        part_name  := 'locations_' || to_char(start_date, 'YYYY_MM');
+
+        IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = part_name) THEN
+            EXECUTE format(
+                'CREATE TABLE %I PARTITION OF locations FOR VALUES FROM (%L) TO (%L)',
+                part_name, start_date, end_date);
+        END IF;
+    END LOOP;
+END $$;
 
 CREATE INDEX locations_ride_idx  ON locations (ride_id, recorded_at);
 CREATE INDEX locations_gix       ON locations USING GIST (position);

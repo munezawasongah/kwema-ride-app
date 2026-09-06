@@ -16,9 +16,15 @@ import helmet from 'helmet';
 import type { Request } from 'express';
 
 import { AppModule } from './app.module';
+import { validateEnvironment } from './common/env.validation';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
+
+  // Before anything connects: a misconfigured deploy should fail here, with
+  // the variable named, rather than three layers down in a driver error.
+  validateEnvironment();
+
   const app = await NestFactory.create(AppModule, { bufferLogs: false });
 
   app.use(

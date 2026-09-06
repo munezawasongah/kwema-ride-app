@@ -1,15 +1,21 @@
-/// Localization and currency formatting.
+/// Localization — Swahili, English, French.
 ///
-/// Swahili is the default and English the fallback, not the other way round.
-/// That ordering shows up in the lookup chain below and in `supportedLocales`.
+/// Swahili is the default and the fallback, not English. A missing French
+/// string falls through to Swahili before English, because a Swahili speaker
+/// seeing one untranslated label is a smaller failure than a francophone
+/// seeing a mix of two foreign languages.
+///
+/// French earns its place here: Tanzania borders Burundi, Rwanda and the DRC,
+/// there are established Congolese and Burundian communities in Dar and
+/// Kigoma, and francophone tourists are a real share of airport and Zanzibar
+/// ferry pickups. It is not decoration.
 ///
 /// Currency notes for TZS:
-///  * No circulating subunit. Never show "TSh 3,450.00" — it reads as broken.
-///  * Thousands separator is a comma, and the symbol precedes the amount:
-///    "TSh 3,450".
-///  * Fares are stored in cents internally and divided out only at the edge.
-
-import 'dart:async';
+///  * No circulating subunit. Never render "TSh 3,450.00" — it reads broken.
+///  * Symbol precedes the amount, comma thousands separator: "TSh 3,450".
+///  * French convention would use a space separator, but TZS amounts are
+///    written the same way in all three languages in Tanzania, so the number
+///    format does not switch with locale. Only the words around it do.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -21,27 +27,52 @@ import '../models/vehicle_category.dart';
 // Currency
 // =====================================================================
 
-final NumberFormat _tzsFormat = NumberFormat.decimalPattern('sw_TZ');
+final NumberFormat _tzsFormat = NumberFormat.decimalPattern('en');
 
 /// "TSh 3,450"
-String formatTzs(int cents) {
-  final shillings = (cents / 100).round();
-  return 'TSh ${_tzsFormat.format(shillings)}';
-}
+String formatTzs(int cents) => 'TSh ${_tzsFormat.format((cents / 100).round())}';
 
-/// Compact form for tight spaces like the category carousel: "3.4K".
-/// Below 10,000 TZS the full number still fits and is clearer.
+/// Compact form for tight spaces. Below 10,000 TZS the full number fits and
+/// is clearer than an abbreviation.
 String formatTzsCompact(int cents) {
   final shillings = (cents / 100).round();
   if (shillings < 10000) return _tzsFormat.format(shillings);
   return '${(shillings / 1000).toStringAsFixed(1)}K';
 }
 
-/// Parses user-typed amounts tolerantly: "3,450", "3450", "TSh 3450".
+/// Tolerant of "3,450", "3450", "TSh 3450".
 int? parseTzsToCents(String input) {
   final cleaned = input.replaceAll(RegExp(r'[^0-9]'), '');
-  if (cleaned.isEmpty) return null;
-  return int.parse(cleaned) * 100;
+  return cleaned.isEmpty ? null : int.parse(cleaned) * 100;
+}
+
+// =====================================================================
+// Supported languages
+// =====================================================================
+
+enum AppLanguage {
+  swahili('sw', 'Kiswahili', 'SW'),
+  english('en', 'English', 'EN'),
+  french('fr', 'Français', 'FR');
+
+  const AppLanguage(this.code, this.label, this.short);
+
+  /// ISO 639-1 code, stored in `users.preferred_language`.
+  final String code;
+
+  /// Endonym — each language named in itself. A francophone scanning the
+  /// list should find "Français", not "French".
+  final String label;
+
+  /// Two-letter badge for the compact switcher.
+  final String short;
+
+  static AppLanguage fromCode(String? code) => AppLanguage.values.firstWhere(
+        (l) => l.code == code,
+        orElse: () => AppLanguage.swahili,
+      );
+
+  Locale get locale => Locale(code, 'TZ');
 }
 
 // =====================================================================
@@ -59,35 +90,31 @@ class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
 
-  static const supportedLocales = [
-    Locale('sw', 'TZ'), // default
-    Locale('en', 'TZ'),
-  ];
+  static List<Locale> get supportedLocales =>
+      AppLanguage.values.map((l) => l.locale).toList();
+
+  AppLanguage get language => AppLanguage.fromCode(locale.languageCode);
 
   Map<String, String> get _strings =>
       _translations[locale.languageCode] ?? _translations['sw']!;
 
-  /// Looks up a key, substituting {placeholders}. Falls back through
-  /// Swahili, then English, then the raw key — a missing translation should
-  /// degrade to something legible, never to a blank widget.
+  /// Looks up a key, substituting {placeholders}. Falls back through the
+  /// active language, then Swahili, then English, then the raw key — a
+  /// missing translation degrades to something legible, never to a blank.
   String translate(String key, {Map<String, String>? params}) {
     var value = _strings[key] ??
         _translations['sw']![key] ??
         _translations['en']![key] ??
         key;
-
-    if (params != null) {
-      params.forEach((k, v) => value = value.replaceAll('{$k}', v));
-    }
+    params?.forEach((k, v) => value = value.replaceAll('{$k}', v));
     return value;
   }
 
   String categoryName(VehicleCategory category) =>
       translate('category.${category.name}');
 
-  /// Swahili pluralisation is regular enough for these cases that a full
-  /// ICU plural rule set would be overkill, but minutes still need it.
-  String minutes(int n) => translate(n == 1 ? 'time.minute_one' : 'time.minute_other',
+  String minutes(int n) => translate(
+      n == 1 ? 'time.minute_one' : 'time.minute_other',
       params: {'n': '$n'});
 }
 
@@ -95,7 +122,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) => ['sw', 'en'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      AppLanguage.values.any((l) => l.code == locale.languageCode);
 
   @override
   Future<AppLocalizations> load(Locale locale) =>
@@ -108,14 +136,14 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 // ---------------------------------------------------------------------
 // Strings
 //
-// Kept inline here for a self-contained scaffold. In the real project these
-// move to ARB files under lib/l10n/ and are generated by gen_l10n so the
-// Swahili copy can be reviewed by a translator without touching Dart.
+// Inline here so the scaffold stays self-contained. In the real project these
+// move to ARB files under lib/l10n/ generated by gen_l10n, so a translator can
+// work on the Swahili and French copy without touching Dart.
 // ---------------------------------------------------------------------
 
 const Map<String, Map<String, String>> _translations = {
+  // -------------------------------------------------------------------
   'sw': {
-    // Rider
     'rider.where_to': 'Unaenda wapi?',
     'rider.pickup_here': 'Nikuchukue hapa',
     'rider.estimated_fare': 'Makadirio ya nauli',
@@ -127,14 +155,12 @@ const Map<String, Map<String, String>> _translations = {
     'rider.driver_arriving': 'Dereva anakuja',
     'rider.trip_started': 'Safari imeanza',
 
-    // Categories
     'category.boda': 'Bodaboda',
     'category.bajaji': 'Bajaji',
     'category.standard': 'Gari',
     'category.xl': 'Gari Kubwa',
     'category.express': 'Express',
 
-    // Driver
     'driver.new_request': 'Ombi jipya la safari',
     'driver.accept': 'Kubali',
     'driver.decline': 'Kataa',
@@ -147,10 +173,10 @@ const Map<String, Map<String, String>> _translations = {
     'driver.payment': 'malipo',
     'driver.surge_bonus': 'Bonasi ya mahitaji ×{x}',
     'driver.offer_taken': 'Safari imeshachukuliwa na dereva mwingine.',
+    'driver.you_earn': 'Unapata',
     'driver.go_online': 'Anza kazi',
     'driver.go_offline': 'Maliza kazi',
 
-    // Payment
     'payment.cash': 'Taslimu',
     'payment.mobile_money': 'Simu',
     'payment.card': 'Kadi',
@@ -161,16 +187,20 @@ const Map<String, Map<String, String>> _translations = {
     'payment.failed': 'Malipo hayakufanikiwa. Jaribu tena.',
     'payment.select_network': 'Chagua mtandao wako',
 
-    // Errors
+    'settings.language': 'Lugha',
+    'settings.choose_language': 'Chagua lugha',
+    'settings.language_changed': 'Lugha imebadilishwa',
+
     'error.network': 'Hakuna mtandao. Tunajaribu tena...',
     'error.location_denied': 'Tunahitaji ruhusa ya eneo ili kukutafutia dereva.',
     'error.gps_off': 'Washa GPS ili kuendelea.',
     'error.quote_expired': 'Bei imeisha muda. Tunapata bei mpya.',
 
-    // Time
     'time.minute_one': 'dakika {n}',
     'time.minute_other': 'dakika {n}',
   },
+
+  // -------------------------------------------------------------------
   'en': {
     'rider.where_to': 'Where to?',
     'rider.pickup_here': 'Pick me up here',
@@ -201,6 +231,7 @@ const Map<String, Map<String, String>> _translations = {
     'driver.payment': 'payment',
     'driver.surge_bonus': 'Demand bonus ×{x}',
     'driver.offer_taken': 'Another driver took this ride.',
+    'driver.you_earn': 'You earn',
     'driver.go_online': 'Go online',
     'driver.go_offline': 'Go offline',
 
@@ -214,10 +245,77 @@ const Map<String, Map<String, String>> _translations = {
     'payment.failed': 'Payment did not go through. Try again.',
     'payment.select_network': 'Choose your network',
 
+    'settings.language': 'Language',
+    'settings.choose_language': 'Choose language',
+    'settings.language_changed': 'Language changed',
+
     'error.network': 'No connection. Retrying...',
     'error.location_denied': 'Location permission is needed to find you a driver.',
     'error.gps_off': 'Turn on GPS to continue.',
     'error.quote_expired': 'That price expired. Getting a new one.',
+
+    'time.minute_one': '{n} minute',
+    'time.minute_other': '{n} minutes',
+  },
+
+  // -------------------------------------------------------------------
+  // Vehicle tier names stay in their local form. A francophone in Dar asks
+  // for a "bajaji", not a "tuk-tuk" — translating the fleet vocabulary would
+  // make the app harder to use, not easier.
+  'fr': {
+    'rider.where_to': 'Où allez-vous ?',
+    'rider.pickup_here': 'Prenez-moi ici',
+    'rider.estimated_fare': 'Tarif estimé',
+    'rider.request_ride': 'Demander {category}',
+    'rider.eta_min': '{min} min',
+    'rider.surge_active': 'Forte demande ×{x}',
+    'rider.searching': 'Recherche d\'un chauffeur...',
+    'rider.no_drivers':
+        'Aucun chauffeur à proximité. Réessayez dans quelques minutes.',
+    'rider.driver_arriving': 'Le chauffeur arrive',
+    'rider.trip_started': 'Trajet commencé',
+
+    'category.boda': 'Bodaboda',
+    'category.bajaji': 'Bajaji',
+    'category.standard': 'Voiture',
+    'category.xl': 'Voiture XL',
+    'category.express': 'Express',
+
+    'driver.new_request': 'Nouvelle demande de course',
+    'driver.accept': 'Accepter',
+    'driver.decline': 'Refuser',
+    'driver.pickup': 'Prise en charge',
+    'driver.dropoff': 'Destination',
+    'driver.away': 'à {d}',
+    'driver.eta_min': '{min} min',
+    'driver.to_pickup': 'jusqu\'au client',
+    'driver.rider_rating': 'note',
+    'driver.payment': 'paiement',
+    'driver.surge_bonus': 'Prime de demande ×{x}',
+    'driver.offer_taken': 'Un autre chauffeur a pris cette course.',
+    'driver.you_earn': 'Vous gagnez',
+    'driver.go_online': 'Se mettre en ligne',
+    'driver.go_offline': 'Se déconnecter',
+
+    'payment.cash': 'Espèces',
+    'payment.mobile_money': 'Mobile',
+    'payment.card': 'Carte',
+    'payment.wallet': 'Portefeuille',
+    'payment.prompt_sent': 'Vérifiez votre téléphone et saisissez votre code PIN.',
+    'payment.confirming': 'Confirmation de votre paiement...',
+    'payment.success': 'Paiement effectué',
+    'payment.failed': 'Le paiement a échoué. Réessayez.',
+    'payment.select_network': 'Choisissez votre opérateur',
+
+    'settings.language': 'Langue',
+    'settings.choose_language': 'Choisir la langue',
+    'settings.language_changed': 'Langue modifiée',
+
+    'error.network': 'Pas de connexion. Nouvelle tentative...',
+    'error.location_denied':
+        'L\'accès à la position est nécessaire pour trouver un chauffeur.',
+    'error.gps_off': 'Activez le GPS pour continuer.',
+    'error.quote_expired': 'Ce tarif a expiré. Nouveau calcul en cours.',
 
     'time.minute_one': '{n} minute',
     'time.minute_other': '{n} minutes',

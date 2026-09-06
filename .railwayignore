@@ -1,0 +1,8 @@
+# Files Railway does not need in the build context. The Flutter apps are
+# built and shipped separately through the app stores.
+mobile/
+docs/
+*.md
+!README.md
+.github/
+docker-compose.yml

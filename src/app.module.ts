@@ -11,6 +11,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { PricingModule } from './pricing/pricing.module';
 import { RidesModule } from './rides/rides.module';
 import { PaymentsModule } from './payments/payments.module';
+import { UsersModule } from './users/users.module';
 import { HealthController } from './health/health.controller';
 import { JobsService } from './common/jobs.service';
 
@@ -48,6 +49,7 @@ import { JobsService } from './common/jobs.service';
     ]),
 
     AuthModule,
+    UsersModule,
     DispatchModule,
     PricingModule,
     RidesModule,

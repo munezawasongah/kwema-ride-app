@@ -30,16 +30,19 @@ git push -u origin main
 2. Railway reads `railway.json` and builds from the `Dockerfile`. No build
    configuration needed.
 
-### 3. Add the two plugins
+### 3. Add the databases — PostGIS template, NOT the default Postgres
 
-In the same project: **New** → **Database** → **PostgreSQL**, then again for
-**Redis**.
+**Do not use Railway's standard PostgreSQL plugin.** It ships the plain
+Debian Postgres image with no PostGIS, and this schema is built on
+`GEOGRAPHY` columns. Migration 001 will fail with
+`type "geography" does not exist`.
 
-PostGIS matters here. Railway's Postgres image ships the extension but does
-not enable it, and `001_schema.sql` runs `CREATE EXTENSION postgis` as its
-first statement — that works on Railway's Postgres. If your plugin image
-lacks the extension entirely, migration 001 fails loudly on first deploy
-rather than half-creating the schema.
+Instead: **New** → **Template** → search **PostGIS** → deploy
+`postgis/postgis` (PostgreSQL 16, PostGIS 3.4). Then **New** → **Database**
+→ **Redis** for the cache.
+
+The PostGIS template initialises with a self-signed certificate, which is why
+the app sets `rejectUnauthorized: false` when `DATABASE_SSL=true`.
 
 ### 4. Set the service variables
 

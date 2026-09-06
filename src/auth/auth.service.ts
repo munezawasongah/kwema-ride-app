@@ -278,12 +278,46 @@ export class AuthService {
   }
 
   /**
+   * OTP message text, in the recipient's stored language.
+   *
+   * Kept deliberately short. Tanzanian gateways bill per 160-character
+   * segment, and the French wording is the longest of the three — if a
+   * translation grows past that, the whole cohort's SMS cost doubles
+   * silently. Count before editing.
+   */
+  private otpMessage(code: string, language: string): string {
+    switch (language) {
+      case 'en':
+        return `Your Kwema Ride code is ${code}. Do not share it with anyone.`;
+      case 'fr':
+        return `Votre code Kwema Ride est ${code}. Ne le partagez avec personne.`;
+      default:
+        return `Msimbo wako wa Kwema Ride ni ${code}. Usimshirikishe mtu yeyote.`;
+    }
+  }
+
+  /**
+   * Looks up the language for a phone number that may not have an account
+   * yet. A first-time user has no stored preference, so they get Swahili —
+   * which is the right default for this market regardless.
+   */
+  private async languageForPhone(phone: string): Promise<string> {
+    const [row] = await this.db.query(
+      `SELECT preferred_language FROM users
+        WHERE phone = $1 AND deleted_at IS NULL`,
+      [phone],
+    );
+    return row?.preferred_language ?? 'sw';
+  }
+
+  /**
    * SMS delivery. Wired to whichever Tanzanian gateway you contract
    * (Beem, NextSMS, Africa's Talking). Sender IDs must be registered with
    * TCRA before they will deliver.
    */
   private async sendSms(phone: string, code: string): Promise<void> {
-    const message = `Msimbo wako wa Kwema Ride ni ${code}. Usimshirikishe mtu yeyote.`;
+    const language = await this.languageForPhone(phone);
+    const message = this.otpMessage(code, language);
 
     if (!process.env.SMS_API_URL) {
       // In development the code goes to the log rather than silently failing.
