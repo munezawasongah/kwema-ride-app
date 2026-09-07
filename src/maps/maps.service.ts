@@ -111,11 +111,13 @@ export class MapsService {
               destination: `${destination.lat},${destination.lng}`,
               key: this.key,
               region: 'tz',
-              // Motorcycles legitimately use routes cars cannot. Google has no
-              // motorcycle mode outside a few countries, so bicycling is the
-              // closest proxy for boda routing; it avoids motorways, which is
-              // also where boda are frequently prohibited.
-              mode: category === 'boda' ? 'bicycling' : 'driving',
+              // Always driving. Google has no motorcycle mode in Tanzania, and
+              // bicycling — the obvious proxy — has no route coverage here
+              // either: it returns ZERO_RESULTS, which silently dropped every
+              // boda quote to the straight-line estimator. A driving route
+              // with a boda time factor applied afterwards is both available
+              // and closer to reality.
+              mode: 'driving',
               departure_time: 'now',
               traffic_model: 'best_guess',
               alternatives: 'false',
@@ -135,10 +137,19 @@ export class MapsService {
       }
 
       const leg = data.routes[0].legs[0];
+
+      // A boda filters through traffic a car sits in, so the driving duration
+      // overstates its trip time — badly during a Dar peak. This factor is a
+      // starting point to be retuned from completed-trip telemetry per city;
+      // distance is left alone, since the roads travelled are the same.
+      const bodaTimeFactor = category === 'boda' ? 0.7 : 1;
+      const scale = (seconds?: number) =>
+        seconds === undefined ? undefined : Math.round(seconds * bodaTimeFactor);
+
       const result: RouteResult = {
         distanceMetres: leg.distance.value,
-        durationSeconds: leg.duration.value,
-        durationInTrafficSeconds: leg.duration_in_traffic?.value,
+        durationSeconds: scale(leg.duration.value)!,
+        durationInTrafficSeconds: scale(leg.duration_in_traffic?.value),
         polyline: data.routes[0].overview_polyline.points,
         isEstimate: false,
       };
@@ -179,7 +190,7 @@ export class MapsService {
               destinations: `${destination.lat},${destination.lng}`,
               key: this.key,
               region: 'tz',
-              mode: category === 'boda' ? 'bicycling' : 'driving',
+              mode: 'driving',
               departure_time: 'now',
             },
           })

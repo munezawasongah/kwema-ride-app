@@ -284,9 +284,12 @@ class _BookingSheet extends ConsumerWidget {
                         multiplier: state.selected!.fare.surgeMultiplier),
                 ]),
 
+                // Reusing the network-error string here was wrong: nothing is
+                // offline, the server just could not route this leg and fell
+                // back to a straight-line estimate. Say that instead.
                 if (state.selected?.isEstimate == true) ...[
                   const SizedBox(height: 6),
-                  Text(l10n.translate('error.network'),
+                  Text(l10n.translate('rider.fare_approx'),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: KwemaColors.marigold700)),
                 ],
