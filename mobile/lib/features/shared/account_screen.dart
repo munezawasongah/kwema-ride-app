@@ -22,6 +22,61 @@ final profileProvider =
   return (res as Map).cast<String, dynamic>();
 });
 
+Future<void> _editName(
+    BuildContext context, WidgetRef ref, String current) async {
+  final controller = TextEditingController(text: current);
+  final l10n = AppLocalizations.of(context);
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 8,
+        bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l10n.translate('account.edit_name'),
+              style: Theme.of(sheetContext)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 120,
+            decoration: InputDecoration(
+              hintText: l10n.translate('auth.name_placeholder'),
+              counterText: '',
+              prefixIcon: const Icon(Icons.person_outline),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: FilledButton(
+              onPressed: () async {
+                await ref
+                    .read(authControllerProvider.notifier)
+                    .saveName(controller.text);
+                if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+              },
+              child: Text(l10n.translate('account.save')),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+  controller.dispose();
+}
+
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key, this.isDriver = false});
   final bool isDriver;
@@ -38,7 +93,12 @@ class AccountScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Container(
+          // The whole card is tappable. A name that can only be set once, at
+          // signup, means a typo is permanent and visible to every driver.
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _editName(context, ref, auth.user?.fullName ?? ''),
+            child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: theme.colorScheme.primaryContainer,
@@ -63,9 +123,17 @@ class AccountScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(auth.user?.fullName ?? '',
-                        style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      (auth.user?.fullName.trim().isNotEmpty ?? false)
+                          ? auth.user!.fullName
+                          : l10n.translate('auth.name_placeholder'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: (auth.user?.fullName.trim().isNotEmpty ?? false)
+                            ? null
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     Text(auth.user?.phone ?? '',
                         style: theme.textTheme.bodyMedium),
                     profile.maybeWhen(
@@ -79,7 +147,10 @@ class AccountScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              Icon(Icons.edit_outlined,
+                  size: 20, color: theme.colorScheme.onSurfaceVariant),
             ]),
+            ),
           ),
 
           // Drivers see their commission position here. A driver should watch
