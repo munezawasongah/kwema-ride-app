@@ -17,6 +17,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'driver_controller.dart';
 import 'incoming_ride_modal.dart';
+import '../shared/rating_sheet.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -28,6 +29,7 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   GoogleMapController? _map;
   bool _modalOpen = false;
+  String? _ratedRideId;
 
   @override
   void dispose() {
@@ -44,6 +46,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     // Offers arrive over the socket at any moment; showing the modal from a
     // listener keeps that out of the build method.
     ref.listen<DriverState>(driverControllerProvider, (previous, next) {
+      final ride = next.activeRide;
+      if (ride != null &&
+          ride.status == RideStatus.completed &&
+          _ratedRideId != ride.id) {
+        _ratedRideId = ride.id;
+        RatingSheet.show(
+          context,
+          rideId: ride.id,
+          counterpartyName: l10n.translate('driver.rider_rating'),
+          isRatingDriver: false,
+        );
+      }
+
       if (next.offer != null && !_modalOpen) {
         _modalOpen = true;
         IncomingRideModal.show(

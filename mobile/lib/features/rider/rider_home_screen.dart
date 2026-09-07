@@ -19,6 +19,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
 import 'ride_tracking_sheet.dart';
+import '../shared/rating_sheet.dart';
 
 class RiderHomeScreen extends ConsumerStatefulWidget {
   const RiderHomeScreen({super.key});
@@ -64,10 +65,29 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
     return markers;
   }
 
+  /// Guards against the sheet reopening on every rebuild while the completed
+  /// ride is still on screen.
+  String? _ratedRideId;
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(riderControllerProvider);
     final l10n = AppLocalizations.of(context);
+
+    // Rating is offered once, when the trip closes.
+    ref.listen<RiderState>(riderControllerProvider, (previous, next) {
+      final ride = next.ride;
+      if (ride == null) return;
+      if (ride.status != RideStatus.completed) return;
+      if (ride.driver == null) return;
+      if (_ratedRideId == ride.id) return;
+      _ratedRideId = ride.id;
+      RatingSheet.show(
+        context,
+        rideId: ride.id,
+        counterpartyName: ride.driver!.name,
+      );
+    });
 
     return Scaffold(
       body: Stack(

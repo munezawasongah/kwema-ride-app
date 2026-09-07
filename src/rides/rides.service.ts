@@ -547,6 +547,87 @@ export class RidesService {
   }
 
   // ===================================================================
+  // Ratings
+  // ===================================================================
+
+  /**
+   * Records a one-to-five star rating and updates the recipient's average.
+   *
+   * Column meaning, since the names invite confusion:
+   *   rides.driver_rating = the stars the RIDER gave the DRIVER
+   *   rides.rider_rating  = the stars the DRIVER gave the RIDER
+   *
+   * The caller's role is derived from the ride, never trusted from the
+   * request, so neither party can rate themselves.
+   *
+   * The average is derived from an integer sum rather than updated in place,
+   * so it stays exact no matter how many trips a driver completes.
+   */
+  async rate(
+    rideId: string,
+    raterUserId: string,
+    stars: number,
+    comment?: string,
+  ) {
+    const [ride] = await this.db.query(
+      `SELECT r.id, r.status, r.rider_id, r.driver_id,
+              r.rider_rating, r.driver_rating,
+              d.user_id AS driver_user_id
+         FROM rides r
+         LEFT JOIN drivers d ON d.id = r.driver_id
+        WHERE r.id = $1`,
+      [rideId],
+    );
+
+    if (!ride) throw new BadRequestException('ride_not_found');
+    if (ride.status !== 'completed') {
+      throw new BadRequestException('ride is not complete');
+    }
+
+    const isRider = ride.rider_id === raterUserId;
+    const isDriver = ride.driver_user_id === raterUserId;
+    if (!isRider && !isDriver) throw new BadRequestException('not_your_ride');
+
+    // Column the rating lands in, and whose average it moves.
+    const column = isRider ? 'driver_rating' : 'rider_rating';
+    const recipientUserId = isRider ? ride.driver_user_id : ride.rider_id;
+    if (!recipientUserId) throw new BadRequestException('no_counterparty');
+
+    // Ratings are final. Allowing a re-rate invites pressure on the driver to
+    // ask a rider to change it.
+    if (ride[column] != null) {
+      return { alreadyRated: true, stars: Number(ride[column]) };
+    }
+
+    await this.db.transaction(async (manager) => {
+      await manager.query(
+        `UPDATE rides SET ${column} = $2 WHERE id = $1`,
+        [rideId, stars],
+      );
+
+      // The average is DERIVED from the integer sum, never updated in place.
+      // Updating a rounded average on every rating accumulated up to 0.10
+      // stars of drift in simulation, which matters when drivers are
+      // deactivated on rating thresholds.
+      await manager.query(
+        `UPDATE users
+            SET rating_sum = rating_sum + $2,
+                rating_count = rating_count + 1,
+                rating_avg = round(
+                  (rating_sum + $2)::numeric / (rating_count + 1), 2)
+          WHERE id = $1`,
+        [recipientUserId, stars],
+      );
+    });
+
+    if (comment && comment.trim().length > 0) {
+      this.logger.log(`rating comment ride=${rideId} stars=${stars}`);
+    }
+
+    return { rated: true, stars };
+  }
+
+  // ===================================================================
   // Breadcrumbs
   // ===================================================================
 

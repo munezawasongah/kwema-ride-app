@@ -19,6 +19,7 @@ import 'core/l10n/localization.dart';
 import 'core/network/api_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/name_screen.dart';
 import 'features/shared/main_shell.dart';
 import 'features/driver/driver_home_screen.dart';
 
@@ -78,6 +79,8 @@ class _DriverGate extends ConsumerWidget {
       case AuthStage.phoneEntry:
       case AuthStage.codeEntry:
         return const LoginScreen(appName: 'Endesha na Kwema');
+      case AuthStage.nameEntry:
+        return const NameScreen();
       case AuthStage.authenticated:
         // A rider account signing into the driver app is a real support
         // case, so it gets an explicit screen rather than an empty dashboard.

@@ -1,10 +1,15 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsIn, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthedUser } from '../auth/current-user.decorator';
 import { RidesService } from './rides.service';
+
+class RateDto {
+  @IsInt() @Min(1) @Max(5) stars: number;
+  @IsOptional() @IsString() comment?: string;
+}
 
 class CancelDto {
   @IsOptional() @IsString() reason?: string;
@@ -63,6 +68,22 @@ export class RidesController {
     @Query('offset') offset = '0',
   ) {
     return this.rides.history(user.id, Number(limit), Number(offset));
+  }
+
+  /**
+   * Rate the other party, one to five stars.
+   *
+   * Either side may call it; the server works out who is rating whom from
+   * the ride, so a rider cannot rate themselves and a driver cannot inflate
+   * their own score.
+   */
+  @Post(':id/rate')
+  rate(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+    @Body() dto: RateDto,
+  ) {
+    return this.rides.rate(id, user.id, dto.stars, dto.comment);
   }
 
   @Post(':id/cancel')

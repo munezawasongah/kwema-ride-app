@@ -10,6 +10,7 @@
 /// tokens to it, so a token lifted from one phone is useless on another
 /// without also cloning the id.
 
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,7 @@ class SessionStore {
   static const _kRefresh = 'kwema_refresh';
   static const _kDevice = 'kwema_device_id';
   static const _kUserId = 'kwema_user_id';
+  static const _kUserJson = 'kwema_user_json';
 
   Future<String?> accessToken() => _secure.read(key: _kAccess);
   Future<String?> refreshToken() => _secure.read(key: _kRefresh);
@@ -44,9 +46,25 @@ class SessionStore {
     await _secure.delete(key: _kAccess);
     await _secure.delete(key: _kRefresh);
     await _prefs.remove(_kUserId);
+    await _prefs.remove(_kUserJson);
   }
 
   Future<bool> get hasSession async => (await refreshToken()) != null;
+
+  /// Last known profile, so the app can open offline showing the person's own
+  /// name instead of a blank header or a forced re-login.
+  Future<void> cacheUser(Map<String, dynamic> user) =>
+      _prefs.setString(_kUserJson, jsonEncode(user));
+
+  Map<String, dynamic>? cachedUser() {
+    final raw = _prefs.getString(_kUserJson);
+    if (raw == null) return null;
+    try {
+      return (jsonDecode(raw) as Map).cast<String, dynamic>();
+    } catch (_) {
+      return null;
+    }
+  }
 
   String? get userId => _prefs.getString(_kUserId);
 

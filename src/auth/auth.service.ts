@@ -31,7 +31,10 @@ import { REDIS } from '../common/redis.module';
 const OTP_TTL_SECONDS = 300;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
-const REFRESH_TTL_DAYS = 60;
+// Six months. The product promise is "verify your number once", and a
+// 60-day window quietly broke that for anyone who did not open the app for
+// two months — they got an SMS charge and a re-verification for no reason.
+const REFRESH_TTL_DAYS = 180;
 
 @Injectable()
 export class AuthService {
@@ -257,7 +260,7 @@ export class AuthService {
       `INSERT INTO users (phone, full_name, status, phone_verified_at, referral_code)
        VALUES ($1, $2, 'active', now(), $3)
        RETURNING *, NULL::uuid AS driver_id`,
-      [phone, 'Mteja', crypto.randomBytes(4).toString('hex').toUpperCase()],
+      [phone, '', crypto.randomBytes(4).toString('hex').toUpperCase()],
     );
     return created;
   }

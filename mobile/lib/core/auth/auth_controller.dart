@@ -6,7 +6,7 @@ import '../models/models.dart';
 import '../network/api_client.dart';
 import '../network/session_store.dart';
 
-enum AuthStage { checking, phoneEntry, codeEntry, authenticated }
+enum AuthStage { checking, phoneEntry, codeEntry, nameEntry, authenticated }
 
 class AuthState {
   const AuthState({
@@ -56,15 +56,38 @@ class AuthController extends StateNotifier<AuthState> {
     }
     try {
       final me = await _api.get('/users/me');
+      final user = AppUser.fromJson((me as Map).cast<String, dynamic>());
+      await _session.cacheUser(me.cast<String, dynamic>());
+      state = AuthState(
+        stage: user.fullName.trim().isEmpty
+            ? AuthStage.nameEntry
+            : AuthStage.authenticated,
+        user: user,
+      );
+    } on ApiException catch (e) {
+      // Only a rejected credential ends the session. Clearing it on any
+      // failure meant a moment of bad signal at launch logged the user out
+      // and forced another SMS — the opposite of "verify once".
+      if (e.statusCode == 401) {
+        await _session.clear();
+        state = const AuthState(stage: AuthStage.phoneEntry);
+        return;
+      }
+
+      // Offline: trust the stored session and carry on with the cached
+      // profile. Anything that genuinely needs the server will surface its
+      // own error rather than throwing the user back to a login screen.
+      final cached = _session.cachedUser();
       state = AuthState(
         stage: AuthStage.authenticated,
-        user: AppUser.fromJson((me as Map).cast<String, dynamic>()),
+        user: cached == null ? null : AppUser.fromJson(cached),
       );
     } catch (_) {
-      // Refresh failed or the account is gone; start clean rather than
-      // leaving the app in a half-signed-in state.
-      await _session.clear();
-      state = const AuthState(stage: AuthStage.phoneEntry);
+      final cached = _session.cachedUser();
+      state = AuthState(
+        stage: AuthStage.authenticated,
+        user: cached == null ? null : AppUser.fromJson(cached),
+      );
     }
   }
 
@@ -118,12 +141,42 @@ class AuthController extends StateNotifier<AuthState> {
         refreshToken: map['refreshToken'].toString(),
         userId: user.id,
       );
-      state = AuthState(stage: AuthStage.authenticated, user: user, phone: phone);
+      await _session.cacheUser((map['user'] as Map).cast<String, dynamic>());
+
+      // A new account has no name until the person gives one, so go to the
+      // name step rather than straight in as "Mteja".
+      state = AuthState(
+        stage: user.fullName.trim().isEmpty
+            ? AuthStage.nameEntry
+            : AuthStage.authenticated,
+        user: user,
+        phone: phone,
+      );
     } on ApiException catch (e) {
       state = state.copyWith(
         busy: false,
         error: e.statusCode == 401 ? 'error.otp_invalid' : e.message,
       );
+    }
+  }
+
+  /// Saves the display name for a new account. This is what a driver sees on
+  /// an incoming request and what the rider sees on the trip screen, so it is
+  /// asked once, at signup, rather than left as a placeholder.
+  Future<void> saveName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.length < 2) {
+      state = state.copyWith(error: 'error.name_too_short');
+      return;
+    }
+    state = state.copyWith(busy: true, error: null);
+    try {
+      final res = await _api.patch('/users/me', {'fullName': trimmed});
+      final user = AppUser.fromJson((res as Map).cast<String, dynamic>());
+      await _session.cacheUser(res.cast<String, dynamic>());
+      state = AuthState(stage: AuthStage.authenticated, user: user);
+    } on ApiException catch (e) {
+      state = state.copyWith(busy: false, error: e.message);
     }
   }
 

@@ -32,6 +32,29 @@ export class UsersService {
     return { language: row.preferred_language };
   }
 
+  /**
+   * Sets the display name.
+   *
+   * This is what a driver sees on an incoming request and what a rider sees
+   * on the trip screen, so it is worth validating: an empty or one-character
+   * name makes the trip screen useless for both sides.
+   */
+  async setName(userId: string, fullName: string) {
+    const trimmed = fullName.trim().replace(/\s+/g, ' ');
+    if (trimmed.length < 2 || trimmed.length > 120) {
+      throw new BadRequestException('name must be 2-120 characters');
+    }
+
+    const [row] = await this.db.query(
+      `UPDATE users SET full_name = $2
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id`,
+      [userId, trimmed],
+    );
+    if (!row) throw new BadRequestException('user_not_found');
+    return this.profile(userId);
+  }
+
   async profile(userId: string) {
     const [row] = await this.db.query(
       `SELECT u.id, u.phone, u.full_name, u.preferred_language,
