@@ -15,6 +15,7 @@ import 'core/l10n/localization.dart';
 import 'core/network/api_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
+import 'features/shared/main_shell.dart';
 import 'features/rider/rider_home_screen.dart';
 
 Future<void> main() async {
@@ -73,7 +74,10 @@ class _RiderGate extends ConsumerWidget {
       case AuthStage.codeEntry:
         return const LoginScreen(appName: 'Safiri kwa urahisi');
       case AuthStage.authenticated:
-        return const RiderHomeScreen();
+        return const MainShell(
+          home: RiderHomeScreen(),
+          isDriver: false,
+        );
     }
   }
 }

@@ -19,6 +19,7 @@ import 'core/l10n/localization.dart';
 import 'core/network/api_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
+import 'features/shared/main_shell.dart';
 import 'features/driver/driver_home_screen.dart';
 
 Future<void> main() async {
@@ -81,7 +82,10 @@ class _DriverGate extends ConsumerWidget {
         // A rider account signing into the driver app is a real support
         // case, so it gets an explicit screen rather than an empty dashboard.
         if (auth.user?.isDriver != true) return const _NotADriverScreen();
-        return const DriverHomeScreen();
+        return const MainShell(
+          home: DriverHomeScreen(),
+          isDriver: true,
+        );
     }
   }
 }

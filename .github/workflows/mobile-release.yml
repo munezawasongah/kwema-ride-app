@@ -113,9 +113,13 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.txt
 
+      # Each app gets its own applicationId. Sharing one means Android treats
+      # the second install as an upgrade of the first, so installing the
+      # driver app silently REPLACES the rider app on the same handset.
       - name: Build rider APK
         working-directory: mobile
         run: |
+          python3 tool/set_app_identity.py rider
           flutter build apk --release \
             -t lib/main_rider.dart \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://kwema-ride-app-production.up.railway.app' }}
@@ -124,14 +128,28 @@ jobs:
       - name: Build driver APK
         working-directory: mobile
         run: |
+          python3 tool/set_app_identity.py driver
           flutter build apk --release \
             -t lib/main_driver.dart \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://kwema-ride-app-production.up.railway.app' }}
           mv build/app/outputs/flutter-apk/app-release.apk kwema-driver.apk
 
-      - name: Report sizes
+      - name: Verify distinct package ids
         working-directory: mobile
-        run: ls -lh kwema-*.apk
+        run: |
+          ls -lh kwema-*.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt2 | head -1)
+          if [ -n "$AAPT" ]; then
+            for f in kwema-rider.apk kwema-driver.apk; do
+              echo "$f: $($AAPT dump packagename $f 2>/dev/null || echo '?')"
+            done
+            R=$($AAPT dump packagename kwema-rider.apk 2>/dev/null)
+            D=$($AAPT dump packagename kwema-driver.apk 2>/dev/null)
+            if [ -n "$R" ] && [ "$R" = "$D" ]; then
+              echo "::error::both APKs share package id $R - they cannot coexist"
+              exit 1
+            fi
+          fi
 
       # Artifacts are kept even when the release step is skipped, so a
       # workflow_dispatch run without a tag still produces something usable.

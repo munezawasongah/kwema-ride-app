@@ -1,6 +1,7 @@
 /// Rider state: destination search, quoting, requesting, live tracking.
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -329,10 +330,19 @@ class RiderController extends StateNotifier<RiderState> {
 
   void clearError() => state = state.copyWith(clearError: true);
 
+  /// RFC 4122 version 4 UUID.
+  ///
+  /// This must be a real UUID: the server stores it in a `uuid` column as the
+  /// idempotency key, and anything else is rejected by Postgres before the
+  /// ride is ever created.
   String _uuid() {
-    final now = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-    final rand = (DateTime.now().hashCode ^ hashCode).toRadixString(16);
-    return '$now-$rand';
+    final rnd = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   @override

@@ -122,12 +122,15 @@ class KwemaTheme {
 
     // Tabular figures: fares and countdowns change digit by digit, and
     // proportional numerals make the whole row shuffle sideways each tick.
-    final base = GoogleFonts.dmSansTextTheme();
-    final text = base
-        .apply(
-          bodyColor: scheme.onSurface,
-          displayColor: scheme.onSurface,
-        )
+    // Colours are applied FIRST, and every copyWith below reads from the
+    // applied theme. Reading from the unapplied base instead silently drops
+    // the colour, leaving dark text on a dark surface.
+    final applied = GoogleFonts.dmSansTextTheme().apply(
+      bodyColor: scheme.onSurface,
+      displayColor: scheme.onSurface,
+    );
+    final base = applied;
+    final text = applied
         .copyWith(
           displaySmall: base.displaySmall?.copyWith(
             fontWeight: FontWeight.w700,
