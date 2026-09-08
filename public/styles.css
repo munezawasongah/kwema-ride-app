@@ -273,3 +273,8 @@ footer a:hover{color:#fff}
 @media(max-width:560px){
   .apply-two{grid-template-columns:1fr}
 }
+
+/* The motto sits directly under the mark, set in the display face so it reads
+   as part of the identity rather than as another line of body copy. */
+.motto{font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-weight:700;
+  font-size:16px;letter-spacing:-.01em;color:var(--mg-500);margin-bottom:12px}

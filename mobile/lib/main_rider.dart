@@ -73,7 +73,7 @@ class _RiderGate extends ConsumerWidget {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStage.phoneEntry:
       case AuthStage.codeEntry:
-        return const LoginScreen(appName: 'Safiri kwa urahisi');
+        return const LoginScreen(appName: 'Haraka, salama na kwa wakati');
       case AuthStage.nameEntry:
         return const NameScreen();
       case AuthStage.authenticated:

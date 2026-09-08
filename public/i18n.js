@@ -109,6 +109,7 @@ const KWEMA_I18N = {
     'apply.err.network': 'Hakuna mtandao. Jaribu tena.',
     'apply.err.generic': 'Kuna tatizo. Jaribu tena.',
     'foot.copyright': '© 2026 Jatelo Technologies. Kwema Ride ni huduma ya Jatelo Technologies.',
+    'foot.motto': 'Haraka, salama na kwa wakati.',
   },
   en: {
     'notice': 'Preview release — fares are illustrative until LATRA rates are confirmed.',
@@ -215,6 +216,7 @@ const KWEMA_I18N = {
     'apply.err.network': 'No connection. Try again.',
     'apply.err.generic': 'Something went wrong. Try again.',
     'foot.copyright': '© 2026 Jatelo Technologies. Kwema Ride is a Jatelo Technologies service.',
+    'foot.motto': 'Fast, secure and prompt.',
   },
   fr: {
     'notice': 'Version préliminaire — les tarifs sont indicatifs en attendant la confirmation LATRA.',
@@ -321,6 +323,7 @@ const KWEMA_I18N = {
     'apply.err.network': 'Pas de connexion. Réessayez.',
     'apply.err.generic': 'Une erreur est survenue. Réessayez.',
     'foot.copyright': '© 2026 Jatelo Technologies. Kwema Ride est un service de Jatelo Technologies.',
+    'foot.motto': 'Rapide, sûr et ponctuel.',
   },
 };
 
