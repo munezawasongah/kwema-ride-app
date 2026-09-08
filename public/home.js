@@ -19,29 +19,19 @@
   // dispatcher uses to estimate a driver's approach through traffic. Using
   // the dispatch figure here inflated every duration roughly fourfold and
   // made the board quote prices the app would never charge.
-  const RATES = {
-    boda:     { base:  600, km:  400, min:  40, minimum: 1200, colour: '#D9722B', speed: 32 },
-    bajaji:   { base: 1200, km:  550, min:  60, minimum: 1800, colour: '#C9A227', speed: 26 },
-    standard: { base: 2500, km:  800, min: 100, minimum: 3500, colour: '#3A4BB8', speed: 30 },
-    xl:       { base: 3500, km: 1100, min: 130, minimum: 5000, colour: '#2E7D74', speed: 28 },
+  // Average door-to-door pace on a real Dar route, from what Google
+  // Directions returns — not the slower figure the dispatcher uses to
+  // estimate a driver's approach through traffic.
+  const TIERS = {
+    boda:     { colour: '#D9722B', speed: 32 },
+    bajaji:   { colour: '#C9A227', speed: 26 },
+    standard: { colour: '#3A4BB8', speed: 30 },
+    xl:       { colour: '#2E7D74', speed: 28 },
   };
-  const BOOKING_FEE = 0.03;
-
-  /** Mirrors the server: metered total, floor at the minimum, booking fee,
-   *  then rounded to the nearest 50 TSh so a driver can make change. */
-  function fare(tier, km) {
-    const r = RATES[tier];
-    const minutes = (km / r.speed) * 60;
-    const metered = r.base + km * r.km + minutes * r.min;
-    const withFee = Math.max(metered, r.minimum) * (1 + BOOKING_FEE);
-    return Math.round(withFee / 50) * 50;
-  }
 
   function minutes(tier, km) {
-    return Math.max(1, Math.round((km / RATES[tier].speed) * 60));
+    return Math.max(1, Math.round((km / TIERS[tier].speed) * 60));
   }
-
-  const money = (n) => n.toLocaleString('en-US');
 
   // Real Dar es Salaam routes, with straight-line distances scaled the way the
   // server scales them. Recognisable pairs matter more than exhaustive ones.
@@ -76,13 +66,15 @@
 
     const unit = lang === 'sw' ? 'dakika' : 'min';
 
-    document.getElementById('fares').innerHTML = Object.keys(RATES).map((tier) => `
+    // Travel time, not fare. Quoting prices here would commit the business to
+    // figures set by a rate card that is still provisional, and a marketing
+    // number that disagrees with the app's quote is worse than no number.
+    document.getElementById('fares').innerHTML = Object.keys(TIERS).map((tier) => `
       <div class="fare">
-        <div class="bar" style="background:${RATES[tier].colour}"></div>
+        <div class="bar" style="background:${TIERS[tier].colour}"></div>
         <div class="tier">${names[tier]}</div>
-        <div class="amt">${money(fare(tier, r.km))}</div>
-        <div class="min">${lang === 'sw' ? unit + ' ' + minutes(tier, r.km)
-                                          : minutes(tier, r.km) + ' ' + unit}</div>
+        <div class="amt">${minutes(tier, r.km)}</div>
+        <div class="min">${unit}</div>
       </div>`).join('');
 
     const board = document.getElementById('board');
@@ -108,17 +100,6 @@
   document.addEventListener('visibilitychange', () => {
     document.hidden ? stopBoard() : startBoard();
   });
-
-  // "From" prices in the fleet table, taken from the shortest listed route so
-  // the figure is honest rather than aspirational.
-  function paintFleetPrices() {
-    const shortest = ROUTES.reduce((a, b) => (a.km < b.km ? a : b)).km;
-    document.querySelectorAll('[data-fare]').forEach((el) => {
-      const label = el.querySelector('span');
-      el.textContent = 'TSh ' + money(fare(el.dataset.fare, shortest));
-      if (label) el.appendChild(label);
-    });
-  }
 
   // ---------------------------------------------------------------
   // Downloads
@@ -175,12 +156,10 @@
     b.addEventListener('click', () => {
       kwemaSetLang(b.dataset.lang);
       paintBoard(false);
-      paintFleetPrices();
       renderStores(currentDl);
     });
   });
 
   paintBoard(false);
-  paintFleetPrices();
   startBoard();
 })();

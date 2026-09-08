@@ -127,16 +127,13 @@ header{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.88);
 
 /* ---------- fleet: a rate table, not four identical cards ---------- */
 .fleet{border-top:1px solid var(--line)}
-.fleet-row{display:grid;grid-template-columns:14px 1.4fr 1fr 1fr auto;gap:20px;
+.fleet-row{display:grid;grid-template-columns:14px 1.6fr 1fr 1fr;gap:20px;
   align-items:center;padding:22px 4px;border-bottom:1px solid var(--line)}
 .fleet-row .swatch{width:14px;height:44px;border-radius:4px}
 .fleet-row .name{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;
   font-weight:800;letter-spacing:-.02em}
 .fleet-row .desc{font-size:15px;color:var(--muted);line-height:1.5;margin-top:2px}
 .fleet-row .cap{font-size:15px;color:var(--ink-2)}
-.fleet-row .price{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800}
-.fleet-row .price span{display:block;font-family:'DM Sans',sans-serif;
-  font-size:13px;font-weight:400;color:var(--hint)}
 
 /* ---------- journey: three stops on one line ---------- */
 .journey{display:grid;grid-template-columns:repeat(3,1fr);gap:0;position:relative}
@@ -217,7 +214,7 @@ footer a:hover{color:#fff}
   .journey::before{display:none}
   .stop{text-align:left;padding:0;display:grid;grid-template-columns:28px 1fr;gap:16px}
   .stop .pip{margin:0}
-  .fleet-row{grid-template-columns:12px 1fr auto;gap:14px;padding:18px 2px}
+  .fleet-row{grid-template-columns:12px 1fr;gap:14px;padding:18px 2px}
   .fleet-row .cap{display:none}
   .foot-grid{grid-template-columns:1fr 1fr}
   .nav-links a:not(.btn){display:none}
