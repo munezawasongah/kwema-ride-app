@@ -194,7 +194,7 @@
         <li><span class="tick">✓</span><span data-i18n="drive.3">Bima hai ya chombo</span></li>
         <li><span class="tick">✓</span><span data-i18n="drive.4">Kitambulisho cha NIDA</span></li>
       </ul>
-      <a href="#get" class="btn btn-mg" style="margin-top:30px" data-i18n="drive.cta">Jiunge kama dereva</a>
+      <a href="#apply" class="btn btn-mg" style="margin-top:30px" data-i18n="drive.cta">Jiunge kama dereva</a>
     </div>
     <div class="earn">
       <div class="row"><span class="k" data-i18n="earn.fare">Nauli ya safari</span>
@@ -208,6 +208,73 @@
         Safari za taslimu unabaki nazo mkononi; kamisheni pekee ndiyo unayorudisha.
       </p>
     </div>
+  </div>
+</section>
+
+
+<!-- Applying takes three fields. Documents come later, in person or in the
+     app: asking a bodaboda rider to photograph a licence on a roadside form
+     is how you lose the applicant. -->
+<section class="band" id="apply">
+  <div class="shell apply-grid">
+    <div>
+      <h2 data-i18n="apply.title">Jaza fomu, tutakupigia</h2>
+      <p style="font-size:18px;color:var(--muted);margin-top:16px;max-width:40ch"
+         data-i18n="apply.sub">
+        Anza na jina, simu na barua pepe. Nyaraka — leseni, bima na NIDA —
+        zitafuata baadaye.
+      </p>
+      <ol class="apply-steps">
+        <li><span data-i18n="apply.s1">Jaza fomu hii</span></li>
+        <li><span data-i18n="apply.s2">Tutakupigia simu kukuelekeza</span></li>
+        <li><span data-i18n="apply.s3">Leta nyaraka zako</span></li>
+        <li><span data-i18n="apply.s4">Anza kupokea safari</span></li>
+      </ol>
+    </div>
+
+    <form class="apply-card" id="apply-form" novalidate>
+      <div id="apply-msg"></div>
+
+      <label for="ap-name" data-i18n="apply.name">Jina kamili</label>
+      <input id="ap-name" name="fullName" autocomplete="name" required>
+
+      <label for="ap-phone" data-i18n="apply.phone">Namba ya simu</label>
+      <input id="ap-phone" name="phone" value="+255" inputmode="tel"
+             autocomplete="tel" required>
+
+      <label for="ap-email" data-i18n="apply.email">Barua pepe</label>
+      <input id="ap-email" name="email" type="email" autocomplete="email">
+
+      <div class="apply-two">
+        <div>
+          <label for="ap-city" data-i18n="apply.city">Mji</label>
+          <input id="ap-city" name="city" value="Dar es Salaam" autocomplete="address-level2">
+        </div>
+        <div>
+          <label for="ap-type" data-i18n="apply.vehicle">Utaendesha nini?</label>
+          <select id="ap-type" name="vehicleType">
+            <option value="boda">Bodaboda</option>
+            <option value="bajaji">Bajaji</option>
+            <option value="standard" selected>Gari</option>
+            <option value="xl">Gari Kubwa</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Honeypot: hidden from people, filled by most bots. -->
+      <div class="hp" aria-hidden="true">
+        <label for="ap-website">Website</label>
+        <input id="ap-website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      <label class="apply-consent">
+        <input type="checkbox" id="ap-consent" required>
+        <span data-i18n="apply.consent">Nakubali Kwema kunipigia simu kuhusu maombi haya.</span>
+      </label>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:6px"
+              id="ap-submit" data-i18n="apply.submit">Tuma maombi</button>
+    </form>
   </div>
 </section>
 

@@ -107,6 +107,7 @@
   // =================================================================
   const TABS = [
     ['overview', 'Overview'],
+    ['applications', 'Applications'],
     ['drivers', 'Drivers'],
     ['rides', 'Rides'],
     ['payouts', 'Payouts'],
@@ -135,8 +136,9 @@
       renderLogin();
     };
 
-    ({ overview: viewOverview, drivers: viewDrivers, rides: viewRides,
-       payouts: viewPayouts, finance: viewFinance, tariffs: viewTariffs })[S.tab]();
+    ({ overview: viewOverview, applications: viewApplications, drivers: viewDrivers,
+       rides: viewRides, payouts: viewPayouts, finance: viewFinance,
+       tariffs: viewTariffs })[S.tab]();
   }
 
   const content = () => document.getElementById('content');
@@ -148,6 +150,10 @@
   async function viewOverview() {
     try {
       const d = await api('/admin/overview');
+      // Folded in here rather than a second trip: the overview is the first
+      // screen, and an unanswered application queue is the thing most likely
+      // to be silently costing supply.
+      try { d.applications = await api('/admin/applications/counts'); } catch { }
       const f = d.fleet, t = d.today;
       content().innerHTML = `
         <div class="cards">
@@ -177,11 +183,84 @@
             <div class="sub">${f.inDebt} with cash debt</div></div>
           <div class="stat"><div class="label">Accounts</div>
             <div class="value">${d.users.total}</div></div>
+          <div class="stat ${(d.applications && d.applications.new) ? 'warn' : ''}">
+            <div class="label">New applications</div>
+            <div class="value">${(d.applications && d.applications.new) || 0}</div>
+            <div class="sub">drivers waiting on a call</div></div>
         </div>
         ${t.unservedPercent > 20 ? `<div class="msg-box m-err">
           <strong>${t.unservedPercent}% of requests found no driver today.</strong>
           Riders who cannot get a trip stop opening the app. Supply is the
           constraint, not demand.</div>` : ''}`;
+    } catch (e) { fail(e); }
+  }
+
+  // =================================================================
+  // Applications
+  // =================================================================
+  async function viewApplications() {
+    const filters = [['new', 'New'], ['contacted', 'Contacted'],
+                     ['documents', 'Awaiting documents'], ['approved', 'Approved'],
+                     ['rejected', 'Rejected'], ['all', 'All']];
+    S.appFilter = S.appFilter || 'new';
+
+    content().innerHTML = `
+      <div class="panel">
+        <div class="panel-head"><h2>Driver applications</h2>
+          <div class="filters">${filters.map(([id, l]) =>
+            `<button data-f="${id}" class="${S.appFilter === id ? 'on' : ''}">${l}</button>`).join('')}
+          </div></div>
+        <div id="alist"><div class="empty">Loading…</div></div>
+      </div>`;
+
+    content().querySelectorAll('[data-f]').forEach((b) => {
+      b.onclick = () => { S.appFilter = b.dataset.f; viewApplications(); };
+    });
+
+    try {
+      const rows = await api('/admin/applications?status=' + S.appFilter + '&limit=200');
+      const box = document.getElementById('alist');
+      if (!rows.length) {
+        box.innerHTML = '<div class="empty">No applications here.</div>';
+        return;
+      }
+      box.innerHTML = `<table><thead><tr>
+          <th>Name</th><th>Phone</th><th>Email</th><th>City</th><th>Wants to drive</th>
+          <th>Applied</th><th>App account</th><th>Status</th><th></th>
+        </tr></thead><tbody>${rows.map((a) => `<tr>
+          <td><strong>${esc(a.full_name)}</strong></td>
+          <td>${esc(a.phone)}</td>
+          <td style="font-size:13px">${a.email ? esc(a.email) : '<span style="color:var(--muted)">—</span>'}</td>
+          <td>${esc(a.city || '—')}</td>
+          <td>${esc(a.vehicle_type || '—')}</td>
+          <td style="font-size:13px">${new Date(a.created_at).toLocaleDateString('en-GB')}</td>
+          <td>${a.has_account
+                ? '<span class="pill p-ok">signed up</span>'
+                : '<span class="pill p-warn">not yet</span>'}</td>
+          <td><span class="pill ${a.status === 'approved' ? 'p-ok'
+              : a.status === 'rejected' ? 'p-bad' : 'p-mute'}">${esc(a.status)}</span></td>
+          <td><select data-set="${a.id}" style="padding:6px 9px;border-radius:8px;
+                 border:1px solid var(--line);font-family:inherit;font-size:13px">
+              ${['new','contacted','documents','approved','rejected','duplicate']
+                .map((st) => `<option value="${st}"${st === a.status ? ' selected' : ''}>${st}</option>`).join('')}
+            </select></td>
+        </tr>`).join('')}</tbody></table>
+        <div style="padding:16px 18px;background:var(--surface);font-size:13.5px;color:var(--muted)">
+          An applicant must sign up in the rider app with the same number before
+          a driver record can be created — that is what verifies the number.
+          Until "signed up" shows, use the Drivers tab only after they have.
+        </div>`;
+
+      box.querySelectorAll('[data-set]').forEach((sel) => {
+        sel.onchange = async () => {
+          try {
+            await api('/admin/applications/' + sel.dataset.set, {
+              method: 'PATCH', body: JSON.stringify({ status: sel.value }),
+            });
+            viewApplications();
+          } catch (e) { alert(e.message); }
+        };
+      });
     } catch (e) { fail(e); }
   }
 

@@ -163,3 +163,95 @@
   paintBoard(false);
   startBoard();
 })();
+
+/* ---------------------------------------------------------------------
+ * Driver applications.
+ *
+ * Three fields plus consent. Documents are collected later: asking someone
+ * to photograph a licence and an insurance certificate on a roadside web
+ * form is how an applicant becomes a bounce.
+ * ------------------------------------------------------------------- */
+(function () {
+  const form = document.getElementById('apply-form');
+  if (!form) return;
+
+  const msg = document.getElementById('apply-msg');
+  const submit = document.getElementById('ap-submit');
+
+  const show = (text, kind) => {
+    msg.innerHTML = `<div class="apply-note apply-${kind}">${text}</div>`;
+    msg.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+
+  const t = (key) => kwemaT(key);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.innerHTML = '';
+    document.querySelectorAll('.apply-card input').forEach(
+      (el) => el.removeAttribute('aria-invalid'));
+
+    const name = document.getElementById('ap-name');
+    const phone = document.getElementById('ap-phone');
+    const email = document.getElementById('ap-email');
+    const consent = document.getElementById('ap-consent');
+
+    // Validate here as well as on the server, so someone on a poor connection
+    // learns about a typo before waiting on a request.
+    const phoneValue = phone.value.replace(/\s/g, '');
+    if (name.value.trim().length < 2) {
+      name.setAttribute('aria-invalid', 'true'); name.focus();
+      return show(t('apply.err.name'), 'err');
+    }
+    if (!/^\+255[0-9]{9}$/.test(phoneValue)) {
+      phone.setAttribute('aria-invalid', 'true'); phone.focus();
+      return show(t('apply.err.phone'), 'err');
+    }
+    if (email.value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) {
+      email.setAttribute('aria-invalid', 'true'); email.focus();
+      return show(t('apply.err.email'), 'err');
+    }
+    if (!consent.checked) {
+      return show(t('apply.err.consent'), 'err');
+    }
+
+    submit.disabled = true;
+    const original = submit.textContent;
+    submit.textContent = t('apply.sending');
+
+    try {
+      const res = await fetch('/api/drivers/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name.value.trim(),
+          phone: phoneValue,
+          email: email.value.trim() || undefined,
+          city: document.getElementById('ap-city').value.trim() || undefined,
+          vehicleType: document.getElementById('ap-type').value,
+          consent: true,
+          website: document.getElementById('ap-website').value,
+        }),
+      });
+
+      if (res.status === 429) return show(t('apply.err.rate'), 'err');
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return show(Array.isArray(body.message) ? body.message.join(', ')
+                                                : (body.message || t('apply.err.generic')), 'err');
+      }
+
+      form.querySelectorAll('input').forEach((el) => {
+        if (el.type === 'checkbox') el.checked = false;
+        else if (el.id !== 'ap-phone') el.value = '';
+      });
+      document.getElementById('ap-phone').value = '+255';
+      show(t('apply.done'), 'ok');
+    } catch {
+      show(t('apply.err.network'), 'err');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = original;
+    }
+  });
+})();

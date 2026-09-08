@@ -231,3 +231,45 @@ footer a:hover{color:#fff}
   .board-swap{animation:swap .42s ease}
   @keyframes swap{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 }
+
+/* ---------- driver application ---------- */
+.apply-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+.apply-steps{margin-top:28px;padding-left:0;list-style:none;counter-reset:s}
+.apply-steps li{counter-increment:s;display:flex;gap:14px;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line-2);font-size:16px;color:var(--ink-2)}
+.apply-steps li::before{content:counter(s);flex:none;width:24px;height:24px;
+  border-radius:50%;background:var(--tz-50);color:var(--tz-600);font-size:12.5px;
+  font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.apply-steps li:last-child{border-bottom:none}
+
+.apply-card{background:var(--paper);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:30px}
+.apply-card label{display:block;font-size:13.5px;font-weight:600;
+  color:var(--muted);margin:16px 0 6px}
+.apply-card label:first-of-type{margin-top:0}
+.apply-card input[type=text],.apply-card input:not([type]),
+.apply-card input[type=email],.apply-card input[type=tel],.apply-card select{
+  width:100%;padding:14px 15px;border:1.5px solid var(--line);border-radius:var(--r);
+  font-family:inherit;font-size:16px;background:var(--paper);color:var(--ink)}
+.apply-card input:focus,.apply-card select:focus{outline:none;border-color:var(--tz-500)}
+.apply-card input[aria-invalid="true"]{border-color:var(--stop)}
+.apply-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.apply-consent{display:flex !important;gap:11px;align-items:flex-start;
+  margin:22px 0 4px !important;font-size:14.5px;color:var(--ink-2);
+  font-weight:400 !important;line-height:1.5;cursor:pointer}
+.apply-consent input{width:19px;height:19px;flex:none;margin-top:2px;accent-color:var(--tz-500)}
+
+/* Off-screen rather than display:none — a bot reading the DOM still sees a
+   field worth filling, which is the whole point of a honeypot. */
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+.apply-note{padding:13px 15px;border-radius:var(--r);font-size:14.5px;margin-bottom:18px}
+.apply-ok{background:#E3F3EA;color:var(--go)}
+.apply-err{background:#FBEAE8;color:var(--stop)}
+
+@media(max-width:940px){
+  .apply-grid{grid-template-columns:1fr;gap:36px}
+}
+@media(max-width:560px){
+  .apply-two{grid-template-columns:1fr}
+}
