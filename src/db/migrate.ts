@@ -98,7 +98,64 @@ async function main(): Promise<void> {
   }
 
   console.log('migrations up to date');
+
+  await grantAdmin(client);
+
   await client.end();
+}
+
+/**
+ * Promotes the ADMIN_PHONE account to administrator on every boot.
+ *
+ * Driven by an environment variable rather than a migration for two reasons:
+ * a phone number committed to a public repository is a credential in version
+ * control, and revoking access should be a variable change rather than an
+ * edit to an already-applied migration.
+ *
+ * Idempotent, and deliberately quiet about failure modes that are normal:
+ * the account has to exist first, because the person signs up in the app with
+ * their own number and verifies it by OTP before they can be made an admin.
+ */
+async function grantAdmin(client: Client): Promise<void> {
+  const phone = process.env.ADMIN_PHONE?.trim();
+  if (!phone) {
+    console.log('ADMIN_PHONE not set — no administrator granted');
+    return;
+  }
+
+  if (!/^\+255[0-9]{9}$/.test(phone)) {
+    console.error(`ADMIN_PHONE "${phone}" is not in +255XXXXXXXXX format`);
+    return;
+  }
+
+  try {
+    const { rows } = await client.query(
+      `UPDATE users
+          SET roles = CASE WHEN 'admin' = ANY(roles) THEN roles
+                           ELSE array_append(roles, 'admin'::user_role) END,
+              status = 'active'
+        WHERE phone = $1 AND deleted_at IS NULL
+        RETURNING id, full_name, roles`,
+      [phone],
+    );
+
+    if (rows.length === 0) {
+      console.warn(
+        `ADMIN_PHONE ${phone} has no account yet. ` +
+          'Sign in once with that number in the app, then redeploy.',
+      );
+      return;
+    }
+
+    console.log(
+      `administrator: ${phone} (${rows[0].full_name || 'unnamed'}) ` +
+        `roles=${rows[0].roles}`,
+    );
+  } catch (err) {
+    // Never fail the boot over this — an app that will not start is worse
+    // than an app whose admin panel needs one more deploy.
+    console.error(`admin grant failed: ${(err as Error).message}`);
+  }
 }
 
 void main();

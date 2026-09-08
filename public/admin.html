@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Kwema Ride — Admin</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body{background:var(--surface)}
+  .admin-nav{background:var(--tz-900);color:#fff;padding:0 20px;
+    display:flex;align-items:center;gap:4px;overflow-x:auto;position:sticky;top:0;z-index:40}
+  .admin-nav .brand{font-weight:800;font-size:18px;padding:16px 18px 16px 0;
+    color:#fff;white-space:nowrap}
+  .admin-nav button{background:none;border:none;color:var(--tz-100);
+    padding:18px 14px;font-size:14px;font-weight:600;cursor:pointer;
+    font-family:inherit;border-bottom:3px solid transparent;white-space:nowrap}
+  .admin-nav button:hover{color:#fff}
+  .admin-nav button.on{color:#fff;border-bottom-color:var(--mg-500)}
+  .admin-nav .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .wrap-admin{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:26px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .stat .label{font-size:12.5px;color:var(--muted);font-weight:600;
+    text-transform:uppercase;letter-spacing:.5px}
+  .stat .value{font-size:28px;font-weight:800;letter-spacing:-.8px;margin-top:4px}
+  .stat .sub{font-size:13px;color:var(--hint);margin-top:2px}
+  .stat.warn{border-color:var(--mg-500);background:var(--mg-50)}
+  .stat.warn .value{color:var(--mg-700)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden;margin-bottom:22px}
+  .panel-head{padding:16px 18px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .panel-head h2{font-size:17px;font-weight:700}
+  .panel-body{padding:18px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;padding:11px 14px;background:var(--surface);
+    font-weight:700;font-size:12.5px;text-transform:uppercase;
+    letter-spacing:.4px;color:var(--muted);white-space:nowrap}
+  td{padding:12px 14px;border-top:1px solid var(--line);vertical-align:middle}
+  tr:hover td{background:var(--canvas)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;
+    font-size:12px;font-weight:700;white-space:nowrap}
+  .p-ok{background:#E3F3EA;color:var(--go)}
+  .p-warn{background:var(--mg-50);color:var(--mg-700)}
+  .p-bad{background:#FBEAE8;color:var(--stop)}
+  .p-mute{background:var(--surface);color:var(--muted)}
+  .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px;border:none;
+    cursor:pointer;font-family:inherit;font-weight:600}
+  .btn-go{background:var(--go);color:#fff}
+  .btn-stop{background:var(--stop);color:#fff}
+  .btn-tz{background:var(--tz-500);color:#fff}
+  .btn-out{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .filters button{padding:6px 13px;font-size:13px;border-radius:999px;
+    border:1px solid var(--line);background:#fff;cursor:pointer;font-family:inherit}
+  .filters button.on{background:var(--tz-500);color:#fff;border-color:var(--tz-500)}
+  form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  form.grid label{display:block;font-size:12.5px;font-weight:600;
+    color:var(--muted);margin-bottom:5px}
+  form.grid input,form.grid select{width:100%;padding:11px 12px;
+    border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px}
+  .money{font-variant-numeric:tabular-nums;font-weight:700}
+  .pos{color:var(--go)} .neg{color:var(--stop)}
+  .empty{padding:44px;text-align:center;color:var(--muted)}
+  .msg-box{padding:13px 15px;border-radius:10px;margin-bottom:16px;font-size:14px}
+  .m-err{background:#FBEAE8;color:var(--stop)}
+  .m-ok{background:#E3F3EA;color:var(--go)}
+  .login-wrap{max-width:400px;margin:80px auto;background:#fff;
+    border:1px solid var(--line);border-radius:var(--r-lg);padding:32px}
+  .hint{font-size:13px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="/i18n.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>

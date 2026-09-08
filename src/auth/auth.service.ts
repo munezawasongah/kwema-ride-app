@@ -198,7 +198,14 @@ export class AuthService {
       {
         sub: user.id,
         phone: user.phone,
-        role: user.driver_id ? 'driver' : 'rider',
+        // Admin wins over driver wins over rider. Without this the admin
+        // role was never issued at all, and every admin endpoint rejected
+        // even the seeded administrator.
+        role: Array.isArray(user.roles) && user.roles.includes('admin')
+          ? 'admin'
+          : user.driver_id
+            ? 'driver'
+            : 'rider',
         driverId: user.driver_id ?? undefined,
         category: user.vehicle_category ?? undefined,
         jti,
