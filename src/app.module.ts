@@ -15,6 +15,7 @@ import { MapsModule } from './maps/maps.module';
 import { RidesModule } from './rides/rides.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
+import { EarningsModule } from './earnings/earnings.module';
 import { HealthController } from './health/health.controller';
 import { StatusController } from './health/status.controller';
 import { ConfigController } from './health/config.controller';
@@ -65,6 +66,7 @@ import { JobsService } from './common/jobs.service';
 
     AuthModule,
     UsersModule,
+    EarningsModule,
     MapsModule,
     DispatchModule,
     PricingModule,
