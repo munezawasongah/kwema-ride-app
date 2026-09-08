@@ -234,7 +234,10 @@ export class RidesService {
     );
 
     const fare = Number(detail.quoted_fare_cents);
-    const commissionBps = Number(detail.commission_bps_cap ?? 2500);
+    // Fallback only — the live tariff is the source of truth. Kept in step
+    // with the operator's standard rate so a missing tariff cannot quietly
+    // show a driver a higher take-home than they will actually receive.
+    const commissionBps = Number(detail.commission_bps_cap ?? 1500);
 
     this.gateway.server.to(`driver:${driverId}`).emit('ride:request', {
       rideId,
