@@ -126,7 +126,36 @@ export class MapsService {
           .pipe(timeout(6000)),
       );
 
-      const data = response.data;
+      let data = response.data;
+
+      // Google has no bicycling coverage across most of East Africa, so a
+      // boda request returns ZERO_RESULTS and every boda quote silently
+      // degraded to a straight-line estimate — on the highest-volume tier,
+      // which is the worst possible place for it. Retry once in driving mode
+      // before giving up on real routing; the time factor below still applies.
+      if (category === 'boda' && data.status !== 'OK') {
+        this.logger.warn(
+          `bicycling routing unavailable (${data.status}); retrying as driving`,
+        );
+        const retry = await firstValueFrom(
+          this.http
+            .get(`${this.base}/directions/json`, {
+              params: {
+                origin: `${origin.lat},${origin.lng}`,
+                destination: `${destination.lat},${destination.lng}`,
+                key: this.key,
+                region: 'tz',
+                mode: 'driving',
+                departure_time: 'now',
+                traffic_model: 'best_guess',
+                alternatives: 'false',
+              },
+            })
+            .pipe(timeout(6000)),
+        );
+        data = retry.data;
+      }
+
       if (data.status !== 'OK' || !data.routes?.length) {
         this.logger.warn(
           `directions returned ${data.status}` +
