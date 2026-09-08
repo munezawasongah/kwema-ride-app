@@ -131,6 +131,24 @@ export class RidesService {
     );
     if (!ride || ride.status !== 'requested') return;
 
+    // Subscribe the rider's live sockets to this ride's room.
+    //
+    // The WebSocket request path joins the room itself, but a ride created
+    // over HTTP — which the web client and the mobile fallback both use —
+    // never did. Every status update was then emitted to a room the rider was
+    // not in, so the app sat on "requesting" forever while dispatch ran
+    // normally in the background. socketsJoin reaches sockets on any node via
+    // the Redis adapter, so this works with more than one replica.
+    try {
+      await this.gateway.server
+        .in(`user:${ride.rider_id}`)
+        .socketsJoin(`ride:${rideId}`);
+    } catch (err) {
+      this.logger.warn(
+        `could not join rider to ride room ${rideId}: ${(err as Error).message}`,
+      );
+    }
+
     await this.db.query(`UPDATE rides SET status = 'searching' WHERE id = $1`, [rideId]);
     this.gateway.server.to(`ride:${rideId}`).emit('ride:status_change', {
       rideId,
