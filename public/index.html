@@ -3,12 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kwema Ride — Safiri kwa urahisi Tanzania</title>
-<meta name="description" content="Bodaboda, bajaji na gari kwa dakika chache. Lipa kwa M-Pesa, Mixx by Yas, Airtel Money, kadi au taslimu.">
-<meta name="theme-color" content="#3A4BB8">
+<title>Kwema Ride — Nauli unayoiona ndiyo unayolipa</title>
+<meta name="description" content="Bodaboda, bajaji na gari Dar es Salaam. Bei kamili kabla ya safari. Lipa kwa M-Pesa, Mixx by Yas, Airtel Money, kadi au taslimu.">
+<meta name="theme-color" content="#12142B">
 <meta property="og:title" content="Kwema Ride">
-<meta property="og:description" content="Safiri kwa urahisi. Bodaboda, bajaji na gari Tanzania.">
+<meta property="og:description" content="Nauli unayoiona ndiyo unayolipa. Bodaboda, bajaji na gari Tanzania.">
 <meta property="og:type" content="website">
+<meta property="og:image" content="/brand/icon-512.png">
+
+<link rel="icon" href="/brand/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/brand/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/brand/icon-16.png">
+<link rel="apple-touch-icon" href="/brand/icon-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -19,211 +29,237 @@
 
 <header>
   <div class="shell nav">
-    <a href="/" class="logo">Kwema</a>
+    <a href="/" class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3A4BB8"/><stop offset="1" stop-color="#1C2557"/>
+        </linearGradient></defs>
+        <rect width="100" height="100" rx="22" fill="url(#g)"/>
+        <g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none">
+          <path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/>
+        </g>
+        <circle cx="68" cy="29" r="8.5" fill="#E39B1F"/>
+      </svg>
+      Kwema
+    </a>
     <nav class="nav-links">
-      <a href="#tiers" data-i18n="nav.rides">Safari</a>
+      <a href="#fleet" data-i18n="nav.rides">Safari</a>
       <a href="#pay" data-i18n="nav.pay">Malipo</a>
       <a href="#drive" data-i18n="nav.drive">Kuwa dereva</a>
-      <a href="#download" data-i18n="nav.download">Pakua app</a>
-      <a href="/book.html" class="btn btn-primary" style="padding:10px 20px"
-         data-i18n="nav.book">Omba safari</a>
+      <a href="#get" data-i18n="nav.download">Pakua app</a>
+      <a href="/book.html" class="btn btn-primary btn-sm" data-i18n="nav.book">Omba safari</a>
     </nav>
   </div>
 </header>
 
-<!-- ---------------- hero ---------------- -->
-<div class="hero">
-  <div class="shell hero-grid">
-    <div>
-      <h1 data-i18n="hero.title">Safiri kwa urahisi, popote Tanzania.</h1>
-      <p class="lede" data-i18n="hero.lede">
-        Bodaboda, bajaji au gari — dereva anakufikia kwa dakika chache.
-        Lipa kwa simu, kadi au taslimu.
-      </p>
-      <div class="hero-actions">
-        <a href="/book.html" class="btn btn-light btn-lg" data-i18n="hero.cta">
-          Omba safari sasa
-        </a>
-        <a href="#download" class="btn btn-lg"
-           style="background:rgba(255,255,255,.16);color:#fff" data-i18n="hero.cta2">
-          Pakua app
-        </a>
-      </div>
-      <div class="hero-stats">
-        <div><strong>4</strong><span data-i18n="stat.tiers">aina za usafiri</span></div>
-        <div><strong>5</strong><span data-i18n="stat.pay">njia za malipo</span></div>
-        <div><strong>3</strong><span data-i18n="stat.lang">lugha</span></div>
-      </div>
-    </div>
-
-    <!-- Booking entry. Destination is captured here and carried into the
-         booking app, so the first interaction on the page is the product
-         itself rather than a marketing button. -->
-    <div class="book-card">
-      <h3 data-i18n="book.title">Unaenda wapi?</h3>
-      <div class="field">
-        <span class="dot dot-from"></span>
-        <input id="from" data-i18n-ph="book.from" placeholder="Mahali ulipo" autocomplete="off">
-        <div class="suggestions" id="from-sug" hidden></div>
-      </div>
-      <div class="field">
-        <span class="dot dot-to"></span>
-        <input id="to" data-i18n-ph="book.to" placeholder="Unakoenda" autocomplete="off">
-        <div class="suggestions" id="to-sug" hidden></div>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:6px"
-              id="go" data-i18n="book.go">Angalia bei</button>
-      <p style="font-size:13px;color:var(--muted);margin-top:12px;text-align:center"
-         data-i18n="book.note">Bei ya uhakika kabla ya kuomba safari</p>
-    </div>
-  </div>
-</div>
-
-<!-- ---------------- tiers ---------------- -->
-<section id="tiers">
+<!-- The board is the hero. The product is a firm price, so the page opens
+     with prices for real routes rather than a phone in someone's hand. -->
+<section class="hero">
   <div class="shell">
-    <div class="section-head">
-      <div class="eyebrow" data-i18n="tiers.eyebrow">Aina za usafiri</div>
-      <h2 data-i18n="tiers.title">Chagua kinachokufaa</h2>
-      <p data-i18n="tiers.sub">Kutoka bodaboda ya haraka hadi gari kubwa la familia.</p>
-    </div>
-    <div class="tiers">
-      <div class="tier">
-        <div class="bar" style="background:#D9722B"></div>
-        <h3>Bodaboda</h3>
-        <p data-i18n="tier.boda">Haraka zaidi kwenye foleni. Mtu mmoja, kofia ya usalama.</p>
-        <div class="price"><span data-i18n="tier.from">Kuanzia</span> TSh 1,200</div>
-      </div>
-      <div class="tier">
-        <div class="bar" style="background:#C9A227"></div>
-        <h3>Bajaji</h3>
-        <p data-i18n="tier.bajaji">Nafuu kwa safari fupi. Watu 2–3, kivuli cha mvua.</p>
-        <div class="price"><span data-i18n="tier.from">Kuanzia</span> TSh 1,800</div>
-      </div>
-      <div class="tier">
-        <div class="bar" style="background:#3A4BB8"></div>
-        <h3 data-i18n="tier.car.name">Gari</h3>
-        <p data-i18n="tier.car">Gari la kawaida lenye AC. Watu hadi 4.</p>
-        <div class="price"><span data-i18n="tier.from">Kuanzia</span> TSh 3,500</div>
-      </div>
-      <div class="tier">
-        <div class="bar" style="background:#2E7D74"></div>
-        <h3 data-i18n="tier.xl.name">Gari Kubwa</h3>
-        <p data-i18n="tier.xl">Watu 6–7 au mizigo mingi. Nzuri kwa uwanja wa ndege.</p>
-        <div class="price"><span data-i18n="tier.from">Kuanzia</span> TSh 5,000</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ---------------- how it works ---------------- -->
-<section style="background:var(--surface)">
-  <div class="shell">
-    <div class="section-head">
-      <div class="eyebrow" data-i18n="how.eyebrow">Jinsi inavyofanya kazi</div>
-      <h2 data-i18n="how.title">Hatua tatu tu</h2>
-    </div>
-    <div class="steps">
-      <div class="step">
-        <div class="num">1</div>
-        <h3 data-i18n="how.1.t">Weka unakoenda</h3>
-        <p data-i18n="how.1.p">Andika mahali unapoenda na uone bei ya kila aina ya usafiri.</p>
-      </div>
-      <div class="step">
-        <div class="num">2</div>
-        <h3 data-i18n="how.2.t">Dereva anakuja</h3>
-        <p data-i18n="how.2.p">Tunamtafuta dereva wa karibu. Fuatilia anakofika kwenye ramani.</p>
-      </div>
-      <div class="step">
-        <div class="num">3</div>
-        <h3 data-i18n="how.3.t">Lipa jinsi upendavyo</h3>
-        <p data-i18n="how.3.p">Simu, kadi au taslimu. Bei uliyoona ndiyo unayolipa.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ---------------- payments ---------------- -->
-<section id="pay">
-  <div class="shell">
-    <div class="section-head">
-      <div class="eyebrow" data-i18n="pay.eyebrow">Malipo</div>
-      <h2 data-i18n="pay.title">Njia tatu za kulipa</h2>
-      <p data-i18n="pay.sub">Chagua unayoipenda kabla ya kuomba safari.</p>
-    </div>
-    <div class="pay-grid">
-      <div class="pay">
-        <div class="ic" style="background:var(--tz-50);color:var(--tz-600)">▮</div>
-        <h3 data-i18n="pay.mm.t">Malipo kwa simu</h3>
-        <p data-i18n="pay.mm.p">Utapokea ujumbe kwenye simu yako. Weka PIN na umemaliza.</p>
-        <div class="nets">
-          <span>M-Pesa</span><span>Mixx by Yas</span><span>Airtel Money</span><span>HaloPesa</span>
+    <div class="hero-grid">
+      <div>
+        <h1 data-i18n="hero.title">Nauli unayoiona ndiyo unayolipa.</h1>
+        <p class="lede" data-i18n="hero.lede">
+          Hakuna kubishana bei. Chagua bodaboda, bajaji au gari, uone bei kamili,
+          kisha dereva wa karibu anakufuata.
+        </p>
+        <div class="hero-actions">
+          <a href="/book.html" class="btn btn-light" data-i18n="hero.cta">Omba safari</a>
+          <a href="#get" class="btn btn-line" data-i18n="hero.cta2">Pakua app</a>
         </div>
       </div>
+
+      <div class="board" id="board">
+        <div class="board-top">
+          <span class="dot"></span>
+          <span class="t" data-i18n="board.title">Bei za sasa Dar es Salaam</span>
+        </div>
+        <div class="route">
+          <div class="route-line"><span class="pip a"></span><span class="nm" id="from">Posta</span></div>
+          <div class="route-rail"></div>
+          <div class="route-line"><span class="pip b"></span><span class="nm" id="to">Mlimani City</span></div>
+          <div class="route-meta" id="meta">13.0 km</div>
+        </div>
+        <div class="fares" id="fares"></div>
+        <div class="board-note" data-i18n="board.note">
+          Bei hujumuisha kila kitu. Hakuna gharama ya ziada mwishoni.
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-foot">
+      <span class="chip" data-i18n="chip.pay">M-Pesa · Mixx by Yas · Airtel · HaloPesa</span>
+      <span class="chip" data-i18n="chip.card">Visa &amp; Mastercard</span>
+      <span class="chip" data-i18n="chip.cash">Taslimu</span>
+      <span class="chip" data-i18n="chip.lang">Kiswahili · English · Français</span>
+    </div>
+  </div>
+</section>
+
+<!-- Fleet as a rate table: people compare capacity against price, and a table
+     answers that better than four identical cards. -->
+<section class="band" id="fleet">
+  <div class="shell">
+    <div class="head">
+      <h2 data-i18n="fleet.title">Chagua kinachokufaa</h2>
+      <p data-i18n="fleet.sub">Kutoka bodaboda ya haraka kwenye foleni hadi gari la familia nzima.</p>
+    </div>
+    <div class="fleet">
+      <div class="fleet-row">
+        <span class="swatch" style="background:var(--boda)"></span>
+        <div><div class="name">Bodaboda</div>
+          <div class="desc" data-i18n="fleet.boda">Haraka zaidi kwenye msongamano. Kofia ya usalama inatolewa.</div></div>
+        <div class="cap" data-i18n="fleet.boda.cap">Mtu 1</div>
+        <div class="cap" data-i18n="fleet.boda.note">Safari fupi</div>
+        <div class="price" data-fare="boda">—<span data-i18n="fleet.from">kuanzia</span></div>
+      </div>
+      <div class="fleet-row">
+        <span class="swatch" style="background:var(--bajaji)"></span>
+        <div><div class="name">Bajaji</div>
+          <div class="desc" data-i18n="fleet.bajaji">Nafuu, ina kivuli cha mvua na jua.</div></div>
+        <div class="cap" data-i18n="fleet.bajaji.cap">Watu 2–3</div>
+        <div class="cap" data-i18n="fleet.bajaji.note">Mitaa ya karibu</div>
+        <div class="price" data-fare="bajaji">—<span data-i18n="fleet.from">kuanzia</span></div>
+      </div>
+      <div class="fleet-row">
+        <span class="swatch" style="background:var(--car)"></span>
+        <div><div class="name" data-i18n="fleet.car.name">Gari</div>
+          <div class="desc" data-i18n="fleet.car">Gari lenye AC, mizigo inaingia kwenye buti.</div></div>
+        <div class="cap" data-i18n="fleet.car.cap">Watu 4</div>
+        <div class="cap" data-i18n="fleet.car.note">Kila siku</div>
+        <div class="price" data-fare="standard">—<span data-i18n="fleet.from">kuanzia</span></div>
+      </div>
+      <div class="fleet-row">
+        <span class="swatch" style="background:var(--xl)"></span>
+        <div><div class="name" data-i18n="fleet.xl.name">Gari Kubwa</div>
+          <div class="desc" data-i18n="fleet.xl">Nafasi ya mizigo ya uwanja wa ndege au familia.</div></div>
+        <div class="cap" data-i18n="fleet.xl.cap">Watu 6–7</div>
+        <div class="cap" data-i18n="fleet.xl.note">Uwanja wa ndege</div>
+        <div class="price" data-fare="xl">—<span data-i18n="fleet.from">kuanzia</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- A journey has stops, so the sequence is drawn as one. -->
+<section class="band band-sand">
+  <div class="shell">
+    <div class="head"><h2 data-i18n="how.title">Hatua tatu</h2></div>
+    <div class="journey">
+      <div class="stop"><div class="pip">1</div>
+        <div><h3 data-i18n="how.1.t">Weka unakoenda</h3>
+        <p data-i18n="how.1.p">Andika mahali unapoenda. Utaona bei ya kila aina ya usafiri kabla ya kuomba.</p></div></div>
+      <div class="stop"><div class="pip">2</div>
+        <div><h3 data-i18n="how.2.t">Dereva anakufuata</h3>
+        <p data-i18n="how.2.p">Tunamtafuta dereva wa karibu zaidi. Mfuatilie kwenye ramani hadi afike.</p></div></div>
+      <div class="stop"><div class="pip">3</div>
+        <div><h3 data-i18n="how.3.t">Lipa jinsi upendavyo</h3>
+        <p data-i18n="how.3.p">Simu, kadi au taslimu. Bei ni ile ile uliyoiona mwanzoni.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="pay">
+  <div class="shell">
+    <div class="head">
+      <h2 data-i18n="pay.title">Njia tatu za kulipa</h2>
+      <p data-i18n="pay.sub">Chagua kabla ya safari. Hakuna gharama ya ziada kwa njia yoyote.</p>
+    </div>
+    <div class="pays">
       <div class="pay">
-        <div class="ic" style="background:var(--mg-50);color:var(--mg-600)">▤</div>
+        <h3 data-i18n="pay.mm.t">Malipo kwa simu</h3>
+        <p data-i18n="pay.mm.p">Ombi linakuja kwenye simu yako. Weka PIN yako na umemaliza — hakuna kutafuta chenji.</p>
+        <div class="nets"><span>M-Pesa</span><span>Mixx by Yas</span><span>Airtel Money</span><span>HaloPesa</span></div>
+      </div>
+      <div class="pay">
         <h3 data-i18n="pay.card.t">Kadi</h3>
-        <p data-i18n="pay.card.p">Visa na Mastercard, zenye ulinzi wa 3-D Secure wa benki yako.</p>
+        <p data-i18n="pay.card.p">Visa na Mastercard, kwa ulinzi wa 3-D Secure wa benki yako.</p>
         <div class="nets"><span>Visa</span><span>Mastercard</span></div>
       </div>
       <div class="pay">
-        <div class="ic" style="background:#E3F3EA;color:var(--go)">▰</div>
         <h3 data-i18n="pay.cash.t">Taslimu</h3>
-        <p data-i18n="pay.cash.p">Mlipe dereva mwenyewe mwishoni mwa safari.</p>
-        <div class="nets"><span data-i18n="pay.cash.tag">Hakuna malipo ya ziada</span></div>
+        <p data-i18n="pay.cash.p">Mlipe dereva mwenyewe mwishoni. Bei ni ile ile.</p>
+        <div class="nets"><span data-i18n="pay.cash.tag">Bei sawa</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ---------------- download ---------------- -->
-<section class="download" id="download">
+<section class="band band-dark" id="drive">
+  <div class="shell driver-grid">
+    <div>
+      <h2 data-i18n="drive.title">Endesha na Kwema</h2>
+      <p style="color:var(--tz-100);font-size:18px;margin-top:16px;max-width:42ch" data-i18n="drive.sub">
+        Bodaboda, bajaji au gari. Unaona unachopata kabla ya kukubali kila safari.
+      </p>
+      <ul class="reqs">
+        <li><span class="tick">✓</span><span data-i18n="drive.1">Leseni halali ya udereva</span></li>
+        <li><span class="tick">✓</span><span data-i18n="drive.2">Leseni ya LATRA ya usafirishaji</span></li>
+        <li><span class="tick">✓</span><span data-i18n="drive.3">Bima hai ya chombo</span></li>
+        <li><span class="tick">✓</span><span data-i18n="drive.4">Kitambulisho cha NIDA</span></li>
+      </ul>
+      <a href="#get" class="btn btn-mg" style="margin-top:30px" data-i18n="drive.cta">Jiunge kama dereva</a>
+    </div>
+    <div class="earn">
+      <div class="row"><span class="k" data-i18n="earn.fare">Nauli ya safari</span>
+        <span class="v">TSh 10,000</span></div>
+      <div class="row"><span class="k" data-i18n="earn.commission">Kamisheni ya Kwema (15%)</span>
+        <span class="v">− TSh 1,500</span></div>
+      <div class="row"><span class="k" data-i18n="earn.take">Unachobaki nacho</span>
+        <span class="v mg">TSh 8,500</span></div>
+      <p style="color:var(--tz-100);font-size:14.5px;margin-top:18px;line-height:1.6"
+         data-i18n="earn.note">
+        Safari za taslimu unabaki nazo mkononi; kamisheni pekee ndiyo unayorudisha.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="band band-sand" id="get">
   <div class="shell dl-grid">
     <div>
-      <div class="eyebrow" style="color:var(--mg-500)" data-i18n="dl.eyebrow">Pakua</div>
       <h2 data-i18n="dl.title">Pata app ya Kwema</h2>
-      <p data-i18n="dl.sub">Fuatilia dereva kwenye ramani, hifadhi maeneo unayopenda, na ulipe kwa haraka.</p>
-
-      <div class="dl-tabs" style="margin-top:26px">
+      <p style="font-size:18px;color:var(--muted);margin-top:16px;max-width:40ch" data-i18n="dl.sub">
+        Fuatilia dereva kwenye ramani, hifadhi maeneo unayoenda mara kwa mara, na ulipe kwa mguso mmoja.
+      </p>
+      <div class="dl-tabs">
         <button class="dl-tab on" data-dl="rider" data-i18n="dl.tab.rider">Kwa abiria</button>
         <button class="dl-tab" data-dl="driver" data-i18n="dl.tab.driver">Kwa dereva</button>
       </div>
-
       <div class="store-row" id="stores"></div>
-
-      <div class="apk-note" id="apk-note"></div>
+      <p class="apk-note" id="apk-note"></p>
     </div>
-
-    <div style="text-align:center">
-      <div style="background:var(--tz-800);border-radius:28px;padding:22px;display:inline-block;
-                  border:1px solid rgba(255,255,255,.14)">
-        <div style="width:210px;height:400px;background:var(--canvas);border-radius:20px;
-                    overflow:hidden;text-align:left">
-          <div style="background:var(--tz-500);padding:14px;color:#fff">
-            <div style="font-weight:800;font-size:15px">Kwema</div>
+    <div>
+      <div class="phone">
+        <div class="screen">
+          <div style="background:var(--tz-500);padding:14px 16px;display:flex;
+                      align-items:center;gap:9px">
+            <svg viewBox="0 0 100 100" style="width:22px;height:22px;border-radius:6px" aria-hidden="true">
+              <rect width="100" height="100" rx="22" fill="#26327A"/>
+              <g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none">
+                <path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g>
+              <circle cx="68" cy="29" r="8.5" fill="#E39B1F"/>
+            </svg>
+            <span style="color:#fff;font-weight:700;font-size:15px">Kwema</span>
           </div>
-          <div style="padding:14px">
-            <div style="height:96px;background:var(--surface);border-radius:10px;margin-bottom:12px"></div>
-            <div style="border:1px solid var(--line);border-radius:10px;padding:9px;
-                        font-size:12px;color:var(--muted);margin-bottom:10px;background:#fff">
-              Unaenda wapi?
+          <div style="height:118px;background:#E8E4DC"></div>
+          <div style="padding:14px;background:#fff">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:11px;
+                        font-size:13px;color:var(--muted);margin-bottom:11px">Unaenda wapi?</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="border:2px solid var(--car);background:var(--tz-50);
+                          border-radius:10px;padding:10px;text-align:center">
+                <div style="height:4px;width:22px;background:var(--car);border-radius:2px;margin:0 auto 7px"></div>
+                <div style="font-size:12px;font-weight:700">Gari</div>
+                <div style="font-size:12px;color:var(--muted)">10,000</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center">
+                <div style="height:4px;width:22px;background:var(--boda);border-radius:2px;margin:0 auto 7px"></div>
+                <div style="font-size:12px;font-weight:700">Boda</div>
+                <div style="font-size:12px;color:var(--muted)">4,000</div></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-              <div style="border:2px solid #3A4BB8;background:#EEF0FC;border-radius:9px;padding:9px;text-align:center">
-                <div style="height:4px;width:22px;background:#3A4BB8;border-radius:2px;margin:0 auto 6px"></div>
-                <div style="font-size:11px;font-weight:700;color:#1C1A17">Gari</div>
-                <div style="font-size:11px;color:#6B665E">9,550</div>
-              </div>
-              <div style="border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px;text-align:center">
-                <div style="height:4px;width:22px;background:#D9722B;border-radius:2px;margin:0 auto 6px"></div>
-                <div style="font-size:11px;font-weight:700;color:#1C1A17">Boda</div>
-                <div style="font-size:11px;color:#6B665E">3,900</div>
-              </div>
-            </div>
-            <div style="background:#3A4BB8;color:#fff;text-align:center;padding:11px;
-                        border-radius:10px;font-size:12px;font-weight:700;margin-top:11px">
-              Omba Gari
-            </div>
+            <div style="background:var(--tz-500);color:#fff;text-align:center;padding:12px;
+                        border-radius:10px;font-size:13px;font-weight:700;margin-top:11px">
+              Omba Gari</div>
           </div>
         </div>
       </div>
@@ -231,71 +267,37 @@
   </div>
 </section>
 
-<!-- ---------------- drivers ---------------- -->
-<section class="driver-band" id="drive">
-  <div class="shell driver-grid">
-    <div>
-      <div class="eyebrow" style="color:var(--mg-600)" data-i18n="drive.eyebrow">Kwa madereva</div>
-      <h2 data-i18n="drive.title">Endesha na Kwema, pata kipato</h2>
-      <p data-i18n="drive.sub">
-        Bodaboda, bajaji au gari — jiunge na uanze kupokea safari leo.
-      </p>
-      <ul class="driver-list">
-        <li><span class="tick">✓</span><span data-i18n="drive.1">Unaona unachopata kabla ya kukubali safari</span></li>
-        <li><span class="tick">✓</span><span data-i18n="drive.2">Malipo ya taslimu yanabaki mkononi mwako</span></li>
-        <li><span class="tick">✓</span><span data-i18n="drive.3">Hakuna gharama ya kujiunga</span></li>
-        <li><span class="tick">✓</span><span data-i18n="drive.4">App inafanya kazi hata mtandao ukikatika</span></li>
-      </ul>
-      <a href="#download" class="btn btn-mg btn-lg" style="margin-top:26px"
-         data-i18n="drive.cta">Jiunge kama dereva</a>
-    </div>
-    <div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:26px">
-        <div style="font-size:13px;color:var(--muted);font-weight:600" data-i18n="drive.card.t">
-          Mahitaji ya kujiunga
-        </div>
-        <div style="margin-top:16px;display:grid;gap:13px;font-size:14.5px;color:var(--ink-soft)">
-          <div>• <span data-i18n="drive.r1">Leseni halali ya udereva</span></div>
-          <div>• <span data-i18n="drive.r2">Leseni ya LATRA ya usafirishaji</span></div>
-          <div>• <span data-i18n="drive.r3">Bima hai ya gari</span></div>
-          <div>• <span data-i18n="drive.r4">Kitambulisho cha NIDA</span></div>
-          <div>• <span data-i18n="drive.r5">Uthibitisho wa polisi</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ---------------- footer ---------------- -->
 <footer>
   <div class="shell">
     <div class="foot-grid">
       <div>
-        <div class="logo" style="color:#fff;margin-bottom:12px">Kwema</div>
-        <p style="font-size:14.5px;max-width:26em" data-i18n="foot.blurb">
-          Jukwaa la usafiri Tanzania — bodaboda, bajaji na magari.
+        <div class="brand" style="color:#fff;margin-bottom:14px">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" rx="22" fill="#26327A"/>
+            <g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none">
+              <path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g>
+            <circle cx="68" cy="29" r="8.5" fill="#E39B1F"/>
+          </svg>
+          Kwema
+        </div>
+        <p style="font-size:15px;max-width:28ch;line-height:1.6" data-i18n="foot.blurb">
+          Usafiri wa Dar es Salaam — bodaboda, bajaji na magari.
         </p>
       </div>
-      <div>
-        <h4 data-i18n="foot.product">Huduma</h4>
-        <a href="#tiers" data-i18n="nav.rides">Safari</a>
+      <div><h4 data-i18n="foot.product">Huduma</h4>
+        <a href="#fleet" data-i18n="nav.rides">Safari</a>
         <a href="#pay" data-i18n="nav.pay">Malipo</a>
-        <a href="/book.html" data-i18n="nav.book">Omba safari</a>
-      </div>
-      <div>
-        <h4 data-i18n="foot.drivers">Madereva</h4>
+        <a href="/book.html" data-i18n="nav.book">Omba safari</a></div>
+      <div><h4 data-i18n="foot.drivers">Madereva</h4>
         <a href="#drive" data-i18n="drive.cta">Jiunge kama dereva</a>
-        <a href="#download" data-i18n="dl.tab.driver">App ya dereva</a>
-      </div>
-      <div>
-        <h4 data-i18n="foot.support">Msaada</h4>
+        <a href="#get" data-i18n="dl.tab.driver">App ya dereva</a></div>
+      <div><h4 data-i18n="foot.support">Msaada</h4>
         <a href="mailto:msaada@kwemaride.co.tz">msaada@kwemaride.co.tz</a>
-        <a href="/status" data-i18n="foot.status">Hali ya mfumo</a>
-      </div>
+        <a href="/status" data-i18n="foot.status">Hali ya mfumo</a></div>
     </div>
     <div class="foot-bottom">
       <span>© 2026 Kwema Ride</span>
-      <div class="lang-switch" id="lang">
+      <div class="lang" id="lang">
         <button data-lang="sw" class="on">Kiswahili</button>
         <button data-lang="en">English</button>
         <button data-lang="fr">Français</button>

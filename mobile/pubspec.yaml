@@ -46,10 +46,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.2
+
+# Launcher icons are generated from a single square source at build time.
+# The source is unrounded on purpose: Android and iOS apply their own mask,
+# and pre-rounding leaves a visible double corner.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: "#3A4BB8"
+  adaptive_icon_foreground: assets/icon/icon_foreground.png
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
-
-  # No assets declared: Flutter fails the build on an empty asset directory,
-  # and the UI identifies vehicle tiers by colour bar rather than icon. Add
-  # an assets: block here when real artwork exists.
+  assets:
+    - assets/icon/

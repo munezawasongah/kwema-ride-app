@@ -105,6 +105,12 @@ jobs:
           echo "--- resolved versions ---"
           flutter pub deps --style=compact --no-dev 2>/dev/null | head -30
 
+      # Replaces Flutter's default icon on both apps. Runs after pub get so
+      # the package is available, and before the builds so both APKs carry it.
+      - name: Generate launcher icons
+        working-directory: mobile
+        run: dart run flutter_launcher_icons
+
       # Reported but not gate-keeping: this is the first CI run of code that
       # was never compiled locally, and a blocked pipeline would hide the
       # analyzer output behind a failed job.

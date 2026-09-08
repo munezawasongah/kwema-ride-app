@@ -49,7 +49,7 @@
   function renderLogin(error) {
     app.innerHTML = `
       <div class="login-wrap">
-        <div class="logo" style="font-size:24px;margin-bottom:4px">Kwema</div>
+        <div class="brand" style="font-size:24px;margin-bottom:4px"><svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="ab" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A4BB8"/><stop offset="1" stop-color="#1C2557"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#ab)"/><g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none"><path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g><circle cx="68" cy="29" r="8.5" fill="#E39B1F"/></svg>Kwema</div>
         <p style="color:var(--muted);font-size:14px;margin-bottom:22px">Admin panel</p>
         ${error ? `<div class="msg-box m-err">${esc(error)}</div>` : ''}
         <label style="font-size:13px;font-weight:600;color:var(--muted)">Admin phone</label>
@@ -75,7 +75,7 @@
   function renderCode(error) {
     app.innerHTML = `
       <div class="login-wrap">
-        <div class="logo" style="font-size:24px;margin-bottom:4px">Kwema</div>
+        <div class="brand" style="font-size:24px;margin-bottom:4px"><svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="ab" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A4BB8"/><stop offset="1" stop-color="#1C2557"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#ab)"/><g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none"><path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g><circle cx="68" cy="29" r="8.5" fill="#E39B1F"/></svg>Kwema</div>
         <p style="color:var(--muted);font-size:14px;margin-bottom:22px">${esc(S.phone)}</p>
         ${error ? `<div class="msg-box m-err">${esc(error)}</div>` : ''}
         <input id="code" maxlength="6" inputmode="numeric"
@@ -117,7 +117,7 @@
   function renderShell() {
     app.innerHTML = `
       <div class="admin-nav">
-        <span class="brand">Kwema Admin</span>
+        <span class="brand"><svg viewBox="0 0 100 100" aria-hidden="true" style="width:26px;height:26px;border-radius:7px"><rect width="100" height="100" rx="22" fill="#26327A"/><g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none"><path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g><circle cx="68" cy="29" r="8.5" fill="#E39B1F"/></svg>Kwema Admin</span>
         ${TABS.map(([id, label]) =>
           `<button data-tab="${id}" class="${S.tab === id ? 'on' : ''}">${label}</button>`).join('')}
         <div class="right">
