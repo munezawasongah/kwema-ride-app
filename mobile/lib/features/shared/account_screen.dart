@@ -221,8 +221,12 @@ class AccountScreen extends ConsumerWidget {
 
           const SizedBox(height: 32),
           Center(
-            child: Text('Kwema Ride  ·  v0.1.0',
-                style: theme.textTheme.bodySmall),
+            child: Column(children: [
+              Text('Kwema Ride  ·  v0.1.0', style: theme.textTheme.bodySmall),
+              const SizedBox(height: 2),
+              Text('© 2026 Jatelo Technologies',
+                  style: theme.textTheme.bodySmall),
+            ]),
           ),
         ],
       ),

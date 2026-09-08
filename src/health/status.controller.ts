@@ -181,8 +181,11 @@ export class StatusController {
     </p>
   </div>
 
-  <p style="text-align:center;font-size:13px;color:#979187;padding:8px 0 24px">
+  <p style="text-align:center;font-size:13px;color:#979187;padding:8px 0 6px">
     The rider and driver apps are Flutter clients &mdash; this URL serves the API only.
+  </p>
+  <p style="text-align:center;font-size:12.5px;color:#979187;padding:0 0 24px">
+    &copy; 2026 Jatelo Technologies
   </p>
 
 </div></body></html>`;
