@@ -36,6 +36,28 @@ const OTP_RESEND_COOLDOWN_SECONDS = 60;
 // two months — they got an SMS charge and a re-verification for no reason.
 const REFRESH_TTL_DAYS = 180;
 
+/**
+ * Tests membership of a Postgres role array.
+ *
+ * node-postgres parses built-in array types such as text[] into real
+ * JavaScript arrays, but has no parser registered for an array of a CUSTOM
+ * ENUM — `user_role[]` arrives as the raw literal string "{rider,admin}".
+ * An Array.isArray check therefore silently returns false and every admin is
+ * downgraded to a rider, which is exactly what happened here.
+ *
+ * Handles both shapes so it keeps working if a type parser is registered
+ * later, or if the column type ever changes.
+ */
+export function hasRole(roles: unknown, role: string): boolean {
+  if (Array.isArray(roles)) return roles.includes(role);
+  if (typeof roles !== 'string') return false;
+  return roles
+    .replace(/^\{|\}$/g, '')
+    .split(',')
+    .map((r) => r.trim().replace(/^"|"$/g, ''))
+    .includes(role);
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -198,10 +220,8 @@ export class AuthService {
       {
         sub: user.id,
         phone: user.phone,
-        // Admin wins over driver wins over rider. Without this the admin
-        // role was never issued at all, and every admin endpoint rejected
-        // even the seeded administrator.
-        role: Array.isArray(user.roles) && user.roles.includes('admin')
+        // Admin wins over driver wins over rider.
+        role: hasRole(user.roles, 'admin')
           ? 'admin'
           : user.driver_id
             ? 'driver'
