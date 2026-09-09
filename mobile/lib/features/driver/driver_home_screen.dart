@@ -17,6 +17,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'driver_controller.dart';
 import 'incoming_ride_modal.dart';
+import '../shared/sos_button.dart';
 import '../shared/rating_sheet.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
@@ -369,7 +370,10 @@ class _ActiveTripPanel extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Text(l10n.translate('payment.${ride.paymentMethod}')),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              SosButton(rideId: ride.id, compact: true),
+
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 60,

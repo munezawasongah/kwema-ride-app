@@ -152,6 +152,11 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     // Personal room: lets us push to a user across all their devices.
     await socket.join(`user:${userId}`);
 
+    // Administrators also join the operations room, which is where emergency
+    // alerts land. An SOS has to reach a human immediately; polling would add
+    // seconds that matter.
+    if (role === 'admin') await socket.join('ops');
+
     // Re-join the rooms for any ride still in flight. This is what makes a
     // reconnect after a tunnel or a dropped call seamless — the client does
     // not have to re-subscribe, and it immediately gets a state snapshot.

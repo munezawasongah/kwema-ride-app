@@ -52,7 +52,7 @@ header{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.88);
 .nav{display:flex;align-items:center;gap:30px;height:72px}
 .brand{display:flex;align-items:center;gap:11px;font-family:'Bricolage Grotesque',sans-serif;
   font-weight:800;font-size:22px;letter-spacing:-.04em}
-.brand svg{width:32px;height:32px;border-radius:8px}
+.brand svg{width:34px;height:34px;border-radius:9px;flex:none}
 .nav-links{display:flex;gap:26px;margin-left:auto;align-items:center}
 .nav-links a{font-size:15px;font-weight:500;color:var(--ink-2)}
 .nav-links a:hover{color:var(--tz-500)}
@@ -276,5 +276,10 @@ footer a:hover{color:#fff}
 
 /* The motto sits directly under the mark, set in the display face so it reads
    as part of the identity rather than as another line of body copy. */
+/* Motto sits under the name in the header, so the identity reads as one
+   block: mark, name, promise. */
+.brand-stack{display:flex;flex-direction:column;line-height:1.05}
+.motto-top{font-family:'DM Sans',sans-serif;font-weight:500;font-size:11.5px;
+  letter-spacing:.01em;color:var(--mg-600);white-space:nowrap;margin-top:2px}
 .motto{font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-weight:700;
   font-size:16px;letter-spacing:-.01em;color:var(--mg-500);margin-bottom:12px}

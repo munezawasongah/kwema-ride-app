@@ -18,6 +18,7 @@ import { UsersModule } from './users/users.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { AdminModule } from './admin/admin.module';
 import { ApplicationsModule } from './applications/applications.module';
+import { SafetyModule } from './safety/safety.module';
 import { HealthController } from './health/health.controller';
 import { StatusController } from './health/status.controller';
 import { ConfigController } from './health/config.controller';
@@ -71,6 +72,7 @@ import { JobsService } from './common/jobs.service';
     EarningsModule,
     AdminModule,
     ApplicationsModule,
+    SafetyModule,
     MapsModule,
     DispatchModule,
     PricingModule,

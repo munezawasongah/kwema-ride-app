@@ -107,6 +107,7 @@
   // =================================================================
   const TABS = [
     ['overview', 'Overview'],
+    ['sos', 'SOS'],
     ['applications', 'Applications'],
     ['drivers', 'Drivers'],
     ['rides', 'Rides'],
@@ -136,7 +137,7 @@
       renderLogin();
     };
 
-    ({ overview: viewOverview, applications: viewApplications, drivers: viewDrivers,
+    ({ overview: viewOverview, sos: viewSos, applications: viewApplications, drivers: viewDrivers,
        rides: viewRides, payouts: viewPayouts, finance: viewFinance,
        tariffs: viewTariffs })[S.tab]();
   }
@@ -154,6 +155,7 @@
       // screen, and an unanswered application queue is the thing most likely
       // to be silently costing supply.
       try { d.applications = await api('/admin/applications/counts'); } catch { }
+      try { d.openSos = (await api('/admin/sos')).length; } catch { }
       const f = d.fleet, t = d.today;
       content().innerHTML = `
         <div class="cards">
@@ -183,6 +185,10 @@
             <div class="sub">${f.inDebt} with cash debt</div></div>
           <div class="stat"><div class="label">Accounts</div>
             <div class="value">${d.users.total}</div></div>
+          <div class="stat ${d.openSos ? 'warn' : ''}">
+            <div class="label">Open SOS alerts</div>
+            <div class="value ${d.openSos ? 'neg' : ''}">${d.openSos || 0}</div>
+            <div class="sub">${d.openSos ? 'needs a response now' : 'none open'}</div></div>
           <div class="stat ${(d.applications && d.applications.new) ? 'warn' : ''}">
             <div class="label">New applications</div>
             <div class="value">${(d.applications && d.applications.new) || 0}</div>
@@ -192,6 +198,121 @@
           <strong>${t.unservedPercent}% of requests found no driver today.</strong>
           Riders who cannot get a trip stop opening the app. Supply is the
           constraint, not demand.</div>` : ''}`;
+    } catch (e) { fail(e); }
+  }
+
+  // =================================================================
+  // SOS
+  //
+  // Auto-refreshes and plays a sound on a new alert. An emergency queue that
+  // needs someone to remember to press reload is not a safety feature.
+  // =================================================================
+  let sosTimer = null;
+  let knownAlerts = new Set();
+
+  function stopSosPolling() { if (sosTimer) { clearInterval(sosTimer); sosTimer = null; } }
+
+  async function viewSos() {
+    content().innerHTML = `
+      <div class="panel"><div class="panel-head">
+        <h2>Emergency alerts</h2>
+        <span style="color:var(--muted);font-size:13px">refreshes every 10s</span>
+      </div><div id="soslist"><div class="empty">Loading…</div></div></div>
+      <div class="panel"><div class="panel-head"><h2>Recent history</h2></div>
+        <div id="soshist"><div class="empty">Loading…</div></div></div>`;
+    await loadSos();
+    stopSosPolling();
+    sosTimer = setInterval(() => { if (S.tab === 'sos') loadSos(); else stopSosPolling(); }, 10000);
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880; gain.gain.value = 0.25;
+      osc.start(); osc.stop(ctx.currentTime + 0.35);
+    } catch { /* audio is a nicety; the row still turns red */ }
+  }
+
+  async function loadSos() {
+    try {
+      const [open, hist] = await Promise.all([
+        api('/admin/sos'), api('/admin/sos?history=true'),
+      ]);
+
+      const fresh = open.filter((a) => !knownAlerts.has(a.id));
+      open.forEach((a) => knownAlerts.add(a.id));
+      if (fresh.length && knownAlerts.size > fresh.length) beep();
+
+      const box = document.getElementById('soslist');
+      if (!box) return;
+      box.innerHTML = !open.length
+        ? '<div class="empty">No open alerts.</div>'
+        : open.map((a) => `
+          <div style="padding:18px;border-bottom:1px solid var(--line);
+                      background:${a.status === 'open' ? '#FBEAE8' : '#fff'}">
+            <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div style="font-size:17px;font-weight:800">${esc(a.full_name)}
+                  <span class="pill ${a.status === 'open' ? 'p-bad' : 'p-warn'}"
+                        style="margin-left:8px">${esc(a.status)}</span>
+                  <span class="pill p-mute">${esc(a.raised_by)}</span></div>
+                <div style="font-size:14px;margin-top:4px">
+                  <a href="tel:${esc(a.phone)}">${esc(a.phone)}</a>
+                  · ${new Date(a.created_at).toLocaleTimeString('en-GB')}</div>
+                ${a.ride_reference ? `<div style="font-size:13.5px;color:var(--muted);margin-top:4px">
+                  ${esc(a.ride_reference)} · ${esc(a.pickup_address || '?')} →
+                  ${esc(a.dropoff_address || '?')}</div>` : ''}
+                ${a.emergency_contact_phone ? `<div style="font-size:13.5px;margin-top:4px">
+                  Contact: ${esc(a.emergency_contact_name || '')}
+                  <a href="tel:${esc(a.emergency_contact_phone)}">${esc(a.emergency_contact_phone)}</a>
+                  ${a.contact_notified_at ? '<span class="pill p-ok">notified</span>'
+                                          : '<span class="pill p-warn">not notified</span>'}</div>` : ''}
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${a.lat ? `<a class="btn-sm btn-out" target="_blank" rel="noopener"
+                     href="https://maps.google.com/?q=${a.lat},${a.lng}">Open map</a>`
+                        : '<span class="pill p-warn">no location</span>'}
+                ${a.status === 'open'
+                  ? `<button class="btn-sm btn-tz" data-ack="${a.id}">Acknowledge</button>` : ''}
+                <button class="btn-sm btn-go" data-res="${a.id}">Resolve</button>
+              </div>
+            </div>
+          </div>`).join('');
+
+      box.querySelectorAll('[data-ack]').forEach((b) => {
+        b.onclick = async () => {
+          await api(`/admin/sos/${b.dataset.ack}/acknowledge`, { method: 'POST' });
+          loadSos();
+        };
+      });
+      box.querySelectorAll('[data-res]').forEach((b) => {
+        b.onclick = async () => {
+          const note = prompt('What happened? (recorded against the alert)');
+          if (note === null) return;
+          const falseAlarm = window.confirm('Was this a false alarm? OK = yes');
+          await api(`/admin/sos/${b.dataset.res}/resolve`, {
+            method: 'POST',
+            body: JSON.stringify({ resolution: note || 'resolved', falseAlarm }),
+          });
+          loadSos();
+        };
+      });
+
+      const hbox = document.getElementById('soshist');
+      if (hbox) {
+        hbox.innerHTML = !hist.length
+          ? '<div class="empty">Nothing yet.</div>'
+          : `<table><thead><tr><th>When</th><th>Who</th><th>Type</th><th>Ride</th>
+               <th>Status</th><th>Outcome</th></tr></thead><tbody>${hist.map((a) => `<tr>
+               <td style="font-size:13px">${new Date(a.created_at).toLocaleString('en-GB')}</td>
+               <td>${esc(a.full_name)}</td><td>${esc(a.raised_by)}</td>
+               <td>${a.ride_reference ? esc(a.ride_reference) : '—'}</td>
+               <td><span class="pill ${a.status === 'resolved' ? 'p-ok'
+                   : a.status === 'false_alarm' ? 'p-mute' : 'p-bad'}">${esc(a.status)}</span></td>
+               <td style="font-size:13px">${esc(a.resolution || '—')}</td></tr>`).join('')}</tbody></table>`;
+      }
     } catch (e) { fail(e); }
   }
 

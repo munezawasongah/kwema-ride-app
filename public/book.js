@@ -397,6 +397,9 @@
       (d.status === 'completed' && state.payment === 'mobile_money'
         ? '<button class="btn btn-primary" style="width:100%" id="pay">' +
           T('pay.mm.t') + '</button>' : '') +
+      (!done ? '<button class="btn-sos" id="sos">' +
+        (lang === 'fr' ? 'Urgence' : lang === 'en' ? 'Emergency' : 'Dharura') +
+        '</button>' : '') +
       (done ? '<button class="btn btn-ghost" style="width:100%;margin-top:10px" id="again">' +
         (lang === 'fr' ? 'Nouvelle course' : lang === 'en' ? 'Book another' : 'Omba nyingine') +
         '</button>' : '');
@@ -406,6 +409,9 @@
 
     const pay = document.getElementById('pay');
     if (pay) pay.addEventListener('click', payNow);
+
+    const sos = document.getElementById('sos');
+    if (sos) sos.addEventListener('click', raiseSos);
   }
 
   async function payNow() {
@@ -428,6 +434,54 @@
       }
     } catch (e) {
       panel.insertAdjacentHTML('afterbegin', msg(e.message, 'err'));
+    }
+  }
+
+  // =================================================================
+  // Emergency
+  //
+  // Confirmed once, because a misfire costs an operator's night, then sent
+  // with whatever location the browser can give. A refused or unavailable
+  // geolocation must never block the alert.
+  // =================================================================
+  async function raiseSos() {
+    const lang = kwemaLang();
+    const confirmText = lang === 'fr'
+      ? 'Envoyer une alerte d\u2019urgence à Kwema ?'
+      : lang === 'en'
+      ? 'Send an emergency alert to Kwema?'
+      : 'Tuma ombi la dharura kwa Kwema?';
+    if (!window.confirm(confirmText)) return;
+
+    let coords = null;
+    try {
+      coords = await new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude,
+                           accuracyM: Math.round(p.coords.accuracy) }),
+          () => resolve(null),
+          { timeout: 4000, enableHighAccuracy: true });
+      });
+    } catch { coords = null; }
+
+    try {
+      await api('/sos', {
+        method: 'POST',
+        body: JSON.stringify({
+          rideId: state.ride && (state.ride.rideId || state.ride.id),
+          ...(coords || {}),
+        }),
+      });
+    } catch { /* the alert is still worth confirming; ops also watch the log */ }
+
+    const sent = lang === 'fr'
+      ? 'Alerte envoyée. Appelez le 112 pour la police, l\u2019ambulance ou les pompiers.'
+      : lang === 'en'
+      ? 'Alert sent. Call 112 for police, ambulance or fire.'
+      : 'Ombi limetumwa. Piga 112 kwa polisi, ambulensi au zimamoto.';
+    if (window.confirm(sent + '\n\nOK = 112')) {
+      window.location.href = 'tel:112';
     }
   }
 

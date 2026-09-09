@@ -9,6 +9,7 @@ import '../../core/l10n/localization.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
+import '../shared/sos_button.dart';
 
 class RideTrackingSheet extends ConsumerWidget {
   const RideTrackingSheet({super.key, required this.ride});
@@ -136,6 +137,15 @@ class RideTrackingSheet extends ConsumerWidget {
                 ),
                 Chip(label: Text(l10n.translate('payment.${ride.paymentMethod}'))),
               ]),
+
+              // Available for the whole trip, not only when something has
+              // already gone wrong.
+              if (!ride.status.isTerminal) ...[
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: SosButton(rideId: ride.id, compact: true)),
+                ]),
+              ],
 
               const SizedBox(height: 14),
 
