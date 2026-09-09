@@ -62,7 +62,14 @@
   // =================================================================
   // Login
   // =================================================================
+  /** The emergency button follows the session, not the screen. */
+  function toggleTopSos(visible) {
+    const el = document.getElementById('sos-top');
+    if (el) el.hidden = !visible;
+  }
+
   function renderLogin(error, keepPhone) {
+    toggleTopSos(false);
     panel.innerHTML =
       '<h2 style="font-size:22px;font-weight:800;margin-bottom:6px">' +
         (kwemaLang() === 'fr' ? 'Connexion' : kwemaLang() === 'en' ? 'Sign in' : 'Ingia') + '</h2>' +
@@ -113,6 +120,7 @@
   }
 
   function renderOtp(phone, error) {
+    toggleTopSos(false);
     panel.innerHTML =
       '<h2 style="font-size:22px;font-weight:800;margin-bottom:6px">' +
         (kwemaLang() === 'fr' ? 'Code de vérification' : kwemaLang() === 'en' ? 'Verification code' : 'Msimbo') + '</h2>' +
@@ -146,6 +154,7 @@
   // Booking
   // =================================================================
   function renderBooking(error) {
+    toggleTopSos(true);
     const params = new URLSearchParams(location.search);
     panel.innerHTML =
       '<h2 style="font-size:20px;font-weight:800;margin-bottom:16px">' + T('book.title') + '</h2>' +
@@ -369,6 +378,7 @@
   }
 
   function renderTracking(d) {
+    toggleTopSos(true);
     const lang = kwemaLang();
     const labels = {
       searching: { sw: 'Tunatafuta dereva...', en: 'Finding a driver...', fr: 'Recherche d\u2019un chauffeur...' },
@@ -580,6 +590,12 @@
   }).catch(start);
 
   function start() {
+    const topSos = document.getElementById('sos-top');
+    if (topSos) {
+      topSos.textContent = kwemaLang() === 'fr' ? 'Urgence'
+        : kwemaLang() === 'en' ? 'Emergency' : 'Dharura';
+      topSos.addEventListener('click', raiseSos);
+    }
     initMap();
     if (state.token) renderBooking(); else renderLogin();
   }

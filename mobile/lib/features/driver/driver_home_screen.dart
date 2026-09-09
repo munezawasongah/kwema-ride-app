@@ -259,6 +259,12 @@ class _IdlePanel extends ConsumerWidget {
               ],
 
               const SizedBox(height: 16),
+              // Available whenever the driver is online, not only on a trip.
+              // Waiting alone at night is exactly when this is needed.
+              if (state.isOnline) ...[
+                const SosButton(compact: true),
+                const SizedBox(height: 10),
+              ],
               SizedBox(
                 width: double.infinity,
                 height: 60,

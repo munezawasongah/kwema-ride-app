@@ -44,6 +44,9 @@
   .msg-ok{background:#E3F3EA;color:var(--go)}
   .msg-info{background:var(--mg-50);color:var(--mg-700)}
   .driver-card{background:var(--tz-50);border-radius:var(--r);padding:16px;margin-bottom:14px}
+  .btn-sos-top{margin-left:auto;padding:8px 14px;border:none;border-radius:999px;
+    background:var(--stop);color:#fff;font-family:inherit;font-size:13px;
+    font-weight:700;cursor:pointer}
   .btn-sos{width:100%;margin-top:12px;padding:14px;border:none;border-radius:var(--r);
     background:var(--stop);color:#fff;font-family:inherit;font-size:15px;
     font-weight:700;cursor:pointer}
@@ -65,6 +68,7 @@
     <div class="panel-head">
       <a href="/" class="brand"><svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A4BB8"/><stop offset="1" stop-color="#1C2557"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#bg)"/><g stroke="#fff" stroke-width="9.5" stroke-linecap="round" fill="none"><path d="M33 27 V73"/><path d="M33 50 L68 29"/><path d="M33 50 L70 73"/></g><circle cx="68" cy="29" r="8.5" fill="#E39B1F"/></svg>Kwema</a>
       <span class="motto" style="font-size:12.5px;margin:0 0 0 4px" data-i18n="foot.motto">Haraka, salama na kwa wakati.</span>
+      <button class="btn-sos-top" id="sos-top" hidden>Dharura</button>
       <div class="lang-switch" id="lang" style="margin-left:auto">
         <button data-lang="sw" style="background:var(--surface);color:var(--ink)">SW</button>
         <button data-lang="en" style="background:var(--surface);color:var(--ink)">EN</button>

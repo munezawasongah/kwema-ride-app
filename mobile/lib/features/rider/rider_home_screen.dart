@@ -19,6 +19,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
 import 'ride_tracking_sheet.dart';
+import '../shared/sos_button.dart';
 import '../shared/rating_sheet.dart';
 
 class RiderHomeScreen extends ConsumerStatefulWidget {
@@ -112,6 +113,9 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(children: [
+                // Reachable at any time, not only once a trip is underway.
+                // Someone walking to a pickup point is still a rider.
+                const SosButton(compact: true),
                 const Expanded(child: SizedBox()),
                 const LanguagePill(),
                 const SizedBox(width: 8),
