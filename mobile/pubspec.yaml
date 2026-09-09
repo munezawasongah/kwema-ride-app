@@ -53,7 +53,10 @@ dev_dependencies:
 # and pre-rounding leaves a visible double corner.
 flutter_launcher_icons:
   android: true
-  ios: true
+  # iOS is false because CI runs `flutter create --platforms=android`, so no
+  # ios/ directory exists for the tool to write into — it fails hard rather
+  # than skipping. Set this to true at the same time you add an iOS build.
+  ios: false
   image_path: assets/icon/icon.png
   adaptive_icon_background: "#3A4BB8"
   adaptive_icon_foreground: assets/icon/icon_foreground.png
