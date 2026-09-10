@@ -105,9 +105,10 @@ export class AdminController {
     @CurrentUser() user: AuthedUser,
     @Query('status') status?: string,
     @Query('limit') limit = '50',
+    @Query('service') service?: string,
   ) {
     this.assertAdmin(user);
-    return this.admin.rides(status, Number(limit) || 50);
+    return this.admin.rides(status, Number(limit) || 50, service);
   }
 
   @Get('tariffs')

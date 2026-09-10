@@ -283,3 +283,13 @@ footer a:hover{color:#fff}
   letter-spacing:.01em;color:var(--mg-600);white-space:nowrap;margin-top:2px}
 .motto{font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-weight:700;
   font-size:16px;letter-spacing:-.01em;color:var(--mg-500);margin-bottom:12px}
+
+/* ---------- services ---------- */
+.svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);
+  overflow:hidden}
+.svc{background:var(--paper);padding:30px 26px}
+.svc-bar{width:38px;height:5px;border-radius:3px;margin-bottom:18px}
+.svc h3{font-size:21px;margin-bottom:9px}
+.svc p{font-size:15.5px;color:var(--muted);line-height:1.6}
+@media(max-width:940px){ .svc-grid{grid-template-columns:1fr} }

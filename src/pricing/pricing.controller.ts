@@ -17,6 +17,9 @@ class QuoteDto {
   /** Omit to price every category at once for the selector carousel. */
   @IsOptional() @IsIn(CATEGORIES) category?: VehicleCategory;
 
+  /** ride, parcel or food. Each has its own versioned rate card. */
+  @IsOptional() @IsIn(['ride', 'parcel', 'food']) serviceType?: string;
+
   @IsOptional() @IsNumber() promoDiscountCents?: number;
 }
 
@@ -42,7 +45,15 @@ export class PricingController {
     const pickup = { lat: dto.pickupLat, lng: dto.pickupLng };
     const dropoff = { lat: dto.dropoffLat, lng: dto.dropoffLng };
 
-    const categories = dto.category ? [dto.category] : CATEGORIES;
+    const service = (dto.serviceType ?? 'ride') as 'ride' | 'parcel' | 'food';
+
+    // XL and express carry passengers, not goods, so they have no delivery
+    // rate card. Quoting them would fail per-category with a confusing error.
+    const available = service === 'ride'
+      ? CATEGORIES
+      : (['boda', 'bajaji', 'standard'] as VehicleCategory[]);
+
+    const categories = dto.category ? [dto.category] : available;
 
     // One route per category, but boda and cars are the only two routing
     // profiles, so the cache collapses these to two billed calls at most.
@@ -51,6 +62,7 @@ export class PricingController {
         const route = await this.maps.route(pickup, dropoff, category);
         const quote = await this.fares.quote({
           category,
+          serviceType: service,
           distanceMetres: route.distanceMetres,
           durationSeconds:
             route.durationInTrafficSeconds ?? route.durationSeconds,
@@ -60,6 +72,7 @@ export class PricingController {
 
         return {
           category,
+          serviceType: service,
           quoteId: quote.quoteId,
           expiresAt: quote.expiresAt,
           fare: quote.fare,

@@ -19,6 +19,7 @@ import 'driver_controller.dart';
 import 'incoming_ride_modal.dart';
 import '../shared/sos_button.dart';
 import '../shared/rating_sheet.dart';
+import 'handover_sheet.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -325,8 +326,18 @@ class _ActiveTripPanel extends ConsumerWidget {
         action = controller.startTrip;
         break;
       case RideStatus.inProgress:
-        labelKey = 'driver.complete_btn';
-        action = controller.completeTrip;
+        if (ride.serviceType.isDelivery) {
+          // A delivery ends with a handover, not simply with arriving. The
+          // code check happens before the trip is closed and the fare settled.
+          labelKey = 'delivery.confirm';
+          action = () async {
+            final handed = await HandoverSheet.show(context, ride.id);
+            if (handed) await controller.completeTrip();
+          };
+        } else {
+          labelKey = 'driver.complete_btn';
+          action = controller.completeTrip;
+        }
         break;
       case RideStatus.completed:
         // Cash trips need explicit confirmation that the money changed hands.
@@ -358,6 +369,14 @@ class _ActiveTripPanel extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(children: [
+                Icon(ride.serviceType.icon, size: 18,
+                    color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 7),
+                Text(l10n.translate(ride.serviceType.labelKey),
+                    style: theme.textTheme.bodySmall),
+              ]),
+              const SizedBox(height: 2),
               Text(l10n.translate(ride.status.i18nKey),
                   style: theme.textTheme.titleMedium),
               const SizedBox(height: 4),

@@ -42,6 +42,8 @@ export interface Tariff {
 
 export interface FareInput {
   category: VehicleCategory;
+  /** Which product is being priced. Each has its own versioned rate card. */
+  serviceType?: 'ride' | 'parcel' | 'food';
   distanceMetres: number;
   durationSeconds: number;
   waitingSeconds?: number;
@@ -142,7 +144,11 @@ export class FareService {
     }
 
     const zoneId = await this.resolveZone(input.pickup);
-    const tariff = await this.loadTariff(input.category, zoneId);
+    const tariff = await this.loadTariff(
+      input.category,
+      zoneId,
+      input.serviceType ?? 'ride',
+    );
 
     // ---- Metered components -----------------------------------------
     const km = input.distanceMetres / 1000;
@@ -400,23 +406,32 @@ export class FareService {
    * a gazette change is not a per-second event, but the cache is short enough
    * that ops can push a new rate card without a restart.
    */
-  private async loadTariff(category: VehicleCategory, zoneId: string | null): Promise<Tariff> {
-    const cacheKey = `tariff:${category}:${zoneId ?? 'national'}`;
+  private async loadTariff(
+    category: VehicleCategory,
+    zoneId: string | null,
+    serviceType: string = 'ride',
+  ): Promise<Tariff> {
+    const cacheKey = `tariff:${serviceType}:${category}:${zoneId ?? 'national'}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const [row] = await this.db.query(
       `SELECT * FROM tariffs
         WHERE category = $1
+          AND service_type = $3::service_type
           AND (zone_id = $2 OR zone_id IS NULL)
           AND valid_from <= now()
           AND (valid_to IS NULL OR valid_to > now())
         ORDER BY zone_id NULLS LAST, valid_from DESC
         LIMIT 1`,
-      [category, zoneId],
+      [category, zoneId, serviceType],
     );
 
-    if (!row) throw new BadRequestException(`no active tariff for ${category}`);
+    if (!row) {
+      throw new BadRequestException(
+        `no active tariff for ${serviceType} / ${category}`,
+      );
+    }
 
     const tariff: Tariff = {
       id: row.id,

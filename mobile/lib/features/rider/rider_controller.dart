@@ -28,6 +28,8 @@ class RiderState {
     this.isRequesting = false,
     this.errorKey,
     this.paymentMethod = 'cash',
+    this.service = ServiceType.ride,
+    this.delivery,
   });
 
   final LatLng? pickup;
@@ -43,9 +45,19 @@ class RiderState {
   final bool isRequesting;
   final String? errorKey;
   final String paymentMethod;
+  final ServiceType service;
+
+  /// Set for parcel and food, null for a ride.
+  final DeliveryDetails? delivery;
 
   bool get canRequest =>
-      pickup != null && dropoff != null && selected != null && ride == null;
+      pickup != null &&
+      dropoff != null &&
+      selected != null &&
+      ride == null &&
+      // A delivery needs a named recipient before it can be dispatched;
+      // there is nobody to hand it to otherwise.
+      (!service.isDelivery || delivery != null);
 
   bool get hasActiveRide => ride != null && !ride!.status.isTerminal;
 
@@ -54,7 +66,8 @@ class RiderState {
     List<FareQuote>? quotes, FareQuote? selected, Ride? ride,
     LatLng? driverPosition, List<PlaceSuggestion>? suggestions,
     bool? isQuoting, bool? isRequesting, String? errorKey, String? paymentMethod,
-    bool clearRide = false, bool clearError = false,
+    ServiceType? service, DeliveryDetails? delivery,
+    bool clearRide = false, bool clearError = false, bool clearDelivery = false,
   }) => RiderState(
         pickup: pickup ?? this.pickup,
         dropoff: dropoff ?? this.dropoff,
@@ -69,6 +82,8 @@ class RiderState {
         isRequesting: isRequesting ?? this.isRequesting,
         errorKey: clearError ? null : (errorKey ?? this.errorKey),
         paymentMethod: paymentMethod ?? this.paymentMethod,
+        service: service ?? this.service,
+        delivery: clearDelivery ? null : (delivery ?? this.delivery),
       );
 }
 
@@ -226,12 +241,28 @@ class RiderController extends StateNotifier<RiderState> {
   void setPaymentMethod(String method) =>
       state = state.copyWith(paymentMethod: method);
 
+  /// Switching product re-quotes, because each has its own rate card and the
+  /// available vehicle tiers differ.
+  Future<void> setService(ServiceType service) async {
+    if (service == state.service) return;
+    state = state.copyWith(
+      service: service,
+      quotes: const [],
+      clearDelivery: service == ServiceType.ride,
+    );
+    await refreshQuote();
+  }
+
+  void setDelivery(DeliveryDetails details) =>
+      state = state.copyWith(delivery: details);
+
   Future<void> refreshQuote() async {
     if (state.pickup == null || state.dropoff == null) return;
     state = state.copyWith(isQuoting: true, clearError: true);
 
     try {
       final res = await _api.post('/pricing/quote', {
+        'serviceType': state.service.wire,
         'pickupLat': state.pickup!.latitude,
         'pickupLng': state.pickup!.longitude,
         'dropoffLat': state.dropoff!.latitude,
@@ -275,6 +306,8 @@ class RiderController extends StateNotifier<RiderState> {
         // Idempotency key: a retry after a dropped ack returns the same ride
         // rather than creating a second one.
         'clientGeneratedId': _uuid(),
+        'serviceType': state.service.wire,
+        if (state.delivery != null) 'delivery': state.delivery!.toJson(),
         'quoteId': quote.quoteId,
         'category': quote.category.wire,
         'paymentMethod': state.paymentMethod,

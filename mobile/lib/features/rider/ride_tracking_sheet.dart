@@ -63,6 +63,39 @@ class RideTrackingSheet extends ConsumerWidget {
                   ),
               ]),
 
+              // The sender reads this to the recipient, who quotes it to the
+              // courier. Shown prominently because it is useless if missed.
+              if (ride.deliveryCode != null && !ride.status.isTerminal) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: KwemaColors.marigold50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: KwemaColors.marigold300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.translate('delivery.code'),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: KwemaColors.marigold700)),
+                      Text(
+                        ride.deliveryCode!,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 8,
+                          color: KwemaColors.marigold700,
+                        ),
+                      ),
+                      Text(l10n.translate('delivery.code_hint'),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: KwemaColors.marigold700)),
+                    ],
+                  ),
+                ),
+              ],
+
               if (ride.reference.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(ride.reference, style: theme.textTheme.bodySmall),

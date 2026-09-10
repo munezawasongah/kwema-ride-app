@@ -20,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { SafetyModule } from './safety/safety.module';
 import { PhotosModule } from './photos/photos.module';
+import { DeliveriesModule } from './deliveries/deliveries.module';
 import { HealthController } from './health/health.controller';
 import { StatusController } from './health/status.controller';
 import { ConfigController } from './health/config.controller';
@@ -75,6 +76,7 @@ import { JobsService } from './common/jobs.service';
     ApplicationsModule,
     SafetyModule,
     PhotosModule,
+    DeliveriesModule,
     MapsModule,
     DispatchModule,
     PricingModule,

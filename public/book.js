@@ -26,6 +26,8 @@
     map: null,
     markers: {},
     sessionToken: Math.random().toString(36).slice(2),
+    service: 'ride',
+    delivery: null,
     config: {},
   };
 
@@ -156,8 +158,15 @@
   function renderBooking(error) {
     toggleTopSos(true);
     const params = new URLSearchParams(location.search);
+    const svcLabel = { ride: T('service.ride'), parcel: T('service.parcel'), food: T('service.food') };
+
     panel.innerHTML =
-      '<h2 style="font-size:20px;font-weight:800;margin-bottom:16px">' + T('book.title') + '</h2>' +
+      '<div class="svc-tabs">' +
+        ['ride', 'parcel', 'food'].map((s) =>
+          `<button data-svc="${s}" class="${state.service === s ? 'on' : ''}">${svcLabel[s]}</button>`
+        ).join('') +
+      '</div>' +
+      '<h2 style="font-size:20px;font-weight:800;margin:14px 0 16px">' + T('book.title') + '</h2>' +
       (error ? msg(error, 'err') : '') +
       '<div class="field"><span class="dot dot-from"></span>' +
         '<input id="from" placeholder="' + T('book.from') + '" autocomplete="off" value="' +
@@ -165,6 +174,22 @@
       '<div class="field"><span class="dot dot-to"></span>' +
         '<input id="to" placeholder="' + T('book.to') + '" autocomplete="off" value="' +
         (params.get('to') || '') + '"><div class="suggestions" id="to-sug" hidden></div></div>' +
+      (state.service !== 'ride'
+        ? '<div class="recip">' +
+            '<label>' + T('delivery.what') + '</label>' +
+            '<input id="d-what" placeholder="' + T('delivery.what_hint') + '">' +
+            '<label>' + T('delivery.recipient_name') + '</label>' +
+            '<input id="d-name">' +
+            '<label>' + T('delivery.recipient_phone') + '</label>' +
+            '<input id="d-phone" value="+255">' +
+            '<label>' + T('delivery.size') + '</label>' +
+            '<select id="d-size">' +
+              '<option value="small">' + T('delivery.size_small') + '</option>' +
+              '<option value="medium">' + T('delivery.size_medium') + '</option>' +
+              '<option value="large">' + T('delivery.size_large') + '</option>' +
+            '</select>' +
+          '</div>'
+        : '') +
       '<button class="btn btn-primary" style="width:100%;margin-top:4px" id="quote">' +
         T('book.go') + '</button>' +
       '<div id="results" style="margin-top:20px"></div>';
@@ -172,6 +197,15 @@
     wireSearch('from', (p, label) => { state.pickup = p; setMarker('pickup', p, label); });
     wireSearch('to', (p, label) => { state.dropoff = p; setMarker('dropoff', p, label); });
     document.getElementById('quote').addEventListener('click', getQuotes);
+
+    document.querySelectorAll('[data-svc]').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.service = b.dataset.svc;
+        state.quotes = [];
+        state.delivery = null;
+        renderBooking();
+      });
+    });
 
     useBrowserLocation();
   }
@@ -250,6 +284,7 @@
       const out = await api('/api/pricing/quote', {
         method: 'POST',
         body: JSON.stringify({
+          serviceType: state.service,
           pickupLat: state.pickup.lat, pickupLng: state.pickup.lng,
           dropoffLat: state.dropoff.lat, dropoffLng: state.dropoff.lng,
         }),
@@ -330,8 +365,43 @@
   // =================================================================
   // Request + live tracking
   // =================================================================
+  function readDelivery() {
+    const el = (id) => document.getElementById(id);
+    if (!el('d-name')) return null;
+    const name = el('d-name').value.trim();
+    const phone = el('d-phone').value.replace(/\s/g, '');
+    const what = el('d-what').value.trim();
+
+    if (name.length < 2) return { error: T('delivery.err_name') };
+    if (!/^\+255[0-9]{9}$/.test(phone)) return { error: T('apply.err.phone') };
+    if (what.length < 2) return { error: T('delivery.err_what') };
+
+    return {
+      recipientName: name,
+      recipientPhone: phone,
+      description: what,
+      size: el('d-size').value,
+    };
+  }
+
   async function requestRide() {
     const q = state.selected;
+
+    // A delivery cannot be dispatched without a named recipient — there is
+    // nobody to hand it to otherwise.
+    if (state.service !== 'ride') {
+      const d = readDelivery();
+      if (!d || d.error) {
+        const box = panel.querySelector('#results');
+        if (box) {
+          box.innerHTML = msg(
+            (d && d.error) ? d.error : T('delivery.err_name'), 'err');
+        }
+        return;
+      }
+      state.delivery = d;
+    }
+
     panel.querySelector('#results').innerHTML =
       '<div class="status-box"><div class="spinner"></div><p>' + T('how.2.t') + '</p></div>';
 
@@ -340,6 +410,8 @@
         method: 'POST',
         body: JSON.stringify({
           clientGeneratedId: crypto.randomUUID(),
+          serviceType: state.service,
+          ...(state.delivery ? { delivery: state.delivery } : {}),
           quoteId: q.quoteId,
           category: q.category,
           paymentMethod: state.payment,

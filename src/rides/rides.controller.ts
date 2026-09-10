@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthedUser } from '../auth/current-user.decorator';
 import { RidesService } from './rides.service';
+import { DeliveriesService } from '../deliveries/deliveries.service';
 
 class RateDto {
   @IsInt() @Min(1) @Max(5) stars: number;
@@ -21,8 +25,25 @@ class PointDto {
   @IsOptional() @IsString() address?: string;
 }
 
+class DeliveryDto {
+  @IsString() @Length(2, 120) recipientName: string;
+  @Matches(/^\+255[0-9]{9}$/, { message: 'recipient phone must be +255XXXXXXXXX' })
+  recipientPhone: string;
+  @IsOptional() @IsString() @Length(0, 500) recipientNote?: string;
+  @IsString() @Length(2, 240) description: string;
+  @IsOptional() @IsIn(['small', 'medium', 'large']) size?: string;
+  @IsOptional() @IsInt() @Min(0) declaredValueCents?: number;
+  @IsOptional() @IsIn(['sender', 'recipient']) farePaidBy?: string;
+  @IsOptional() @IsInt() @Min(0) cashToCollectCents?: number;
+}
+
 class RequestRideDto {
   @IsString() clientGeneratedId: string;
+
+  @IsOptional() @IsIn(['ride', 'parcel', 'food']) serviceType?: string;
+
+  /** Required when serviceType is parcel or food. */
+  @IsOptional() @ValidateNested() @Type(() => DeliveryDto) delivery?: DeliveryDto;
   @IsString() quoteId: string;
   @IsIn(['boda', 'bajaji', 'standard', 'xl', 'express']) category: string;
   @IsIn(['cash', 'mobile_money', 'card', 'wallet']) paymentMethod: string;
@@ -38,7 +59,10 @@ class RequestRideDto {
 @Controller('rides')
 @UseGuards(JwtAuthGuard)
 export class RidesController {
-  constructor(private readonly rides: RidesService) {}
+  constructor(
+    private readonly rides: RidesService,
+    private readonly deliveries: DeliveriesService,
+  ) {}
 
   /**
    * Requests a ride over HTTP.
@@ -50,10 +74,36 @@ export class RidesController {
    */
   @Post('request')
   async request(@CurrentUser() user: AuthedUser, @Body() dto: RequestRideDto) {
+    const service = dto.serviceType ?? 'ride';
+
+    // Validated before the ride exists: creating one and then rejecting the
+    // delivery detail would leave an orphaned job occupying the rider's one
+    // active slot for that service.
+    if (service !== 'ride') {
+      if (!dto.delivery) {
+        throw new BadRequestException('delivery details are required');
+      }
+      this.deliveries.validate(dto.delivery as any, dto.category);
+    }
+
     const ride = await this.rides.createOrGet(user.id, dto);
+
+    let deliveryCode: string | undefined;
+    if (service !== 'ride' && dto.delivery) {
+      const attached = await this.deliveries.attach(ride.id, dto.delivery as any);
+      deliveryCode = attached.deliveryCode;
+    }
+
     // Dispatch runs out of band; progress reaches the client over the socket.
     void this.rides.startDispatch(ride.id);
-    return this.rides.toWireSummary(ride);
+
+    return {
+      ...this.rides.toWireSummary(ride),
+      serviceType: service,
+      // Shown to the sender only. They pass it to the recipient, who quotes
+      // it to the courier at handover.
+      deliveryCode,
+    };
   }
 
   @Get('active')

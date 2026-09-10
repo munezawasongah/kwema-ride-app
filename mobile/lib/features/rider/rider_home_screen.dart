@@ -19,6 +19,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
 import 'ride_tracking_sheet.dart';
+import 'delivery_form_sheet.dart';
 import '../shared/sos_button.dart';
 import '../shared/rating_sheet.dart';
 
@@ -200,6 +201,14 @@ class _BookingSheet extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Product switch. Three tabs rather than a menu: the choice is
+              // made before anything else and must be visible, not hidden.
+              _ServiceTabs(
+                selected: state.service,
+                onSelect: (s) => controller.setService(s),
+              ),
+              const SizedBox(height: 12),
+
               TextField(
                 controller: searchController,
                 decoration: InputDecoration(
@@ -233,6 +242,47 @@ class _BookingSheet extends ConsumerWidget {
                     },
                   ),
                 ),
+
+              if (state.service.isDelivery) ...[
+                const SizedBox(height: 10),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => DeliveryFormSheet.show(context, state.service),
+                  child: Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: state.delivery == null
+                          ? theme.colorScheme.errorContainer.withValues(alpha: 0.35)
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(children: [
+                      Icon(state.delivery == null
+                          ? Icons.assignment_late_outlined
+                          : Icons.assignment_turned_in_outlined),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: state.delivery == null
+                            ? Text(l10n.translate('delivery.recipient'),
+                                style: const TextStyle(fontWeight: FontWeight.w600))
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(state.delivery!.recipientName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700)),
+                                  Text(state.delivery!.description,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.bodySmall),
+                                ],
+                              ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ]),
+                  ),
+                ),
+              ],
 
               if (state.quotes.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -482,6 +532,66 @@ class _SurgeChip extends StatelessWidget {
               fontSize: 13),
         ),
       ]),
+    );
+  }
+}
+
+
+/// Ride, parcel or food. Colour and icon carry the distinction as much as the
+/// word does, for the same reason the vehicle tiers use coloured bars.
+class _ServiceTabs extends StatelessWidget {
+  const _ServiceTabs({required this.selected, required this.onSelect});
+
+  final ServiceType selected;
+  final ValueChanged<ServiceType> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Row(
+      children: ServiceType.values.map((service) {
+        final on = service == selected;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => onSelect(service),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                decoration: BoxDecoration(
+                  color: on
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: on ? theme.colorScheme.primary : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: Column(children: [
+                  Icon(service.icon,
+                      size: 21,
+                      color: on
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 3),
+                  Text(
+                    l10n.translate(service.labelKey),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w800 : FontWeight.w500,
+                      color: on ? theme.colorScheme.primary : null,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

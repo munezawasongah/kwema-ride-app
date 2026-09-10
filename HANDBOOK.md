@@ -43,7 +43,19 @@ including future you.
 
 ## 1. What Kwema Ride is
 
-A ride-hailing platform for Tanzania covering four vehicle tiers: **bodaboda**
+A mobility and delivery platform for Tanzania. Three products share one
+dispatch pool, one fare engine and one driver fleet:
+
+| Product | What it moves |
+|---|---|
+| **Kwema Ride** | A passenger |
+| **Kwema Delivery** | A parcel, with a named recipient and proof of handover |
+| **Kwema Food** | A meal the customer ordered elsewhere |
+
+Deliveries are courier jobs, not a marketplace: Kwema carries the item, it
+does not take the order or handle the vendor relationship.
+
+Rides cover four vehicle tiers: **bodaboda**
 (motorcycle), **bajaji** (three-wheeler), **standard car** and **XL**, with an
 **express** tier defined in the schema but not offered on the consumer
 surfaces.

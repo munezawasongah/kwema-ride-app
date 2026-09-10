@@ -299,8 +299,11 @@ export class AdminService {
   // Rides
   // ===================================================================
 
-  async rides(status?: string, limit = 50) {
+  async rides(status?: string, limit = 50, service?: string) {
     const clauses = ["r.requested_at > now() - interval '30 days'"];
+    if (service && ['ride', 'parcel', 'food'].includes(service)) {
+      clauses.push(`r.service_type = '${service}'::service_type`);
+    }
     if (status === 'active') {
       clauses.push(
         "r.status IN ('requested','searching','accepted','arrived','in_progress')",
@@ -310,7 +313,9 @@ export class AdminService {
     }
 
     return this.db.query(
-      `SELECT r.id, r.reference, r.status, r.requested_category,
+      `SELECT r.id, r.reference, r.status, r.requested_category, r.service_type,
+              d2.recipient_name, d2.recipient_phone, d2.description AS parcel_description,
+              d2.delivered_at,
               r.requested_at, r.completed_at,
               r.pickup_address, r.dropoff_address,
               r.quoted_fare_cents, r.final_fare_cents, r.commission_cents,
@@ -321,6 +326,7 @@ export class AdminService {
          JOIN users rider ON rider.id = r.rider_id
          LEFT JOIN drivers d ON d.id = r.driver_id
          LEFT JOIN users du ON du.id = d.user_id
+         LEFT JOIN deliveries d2 ON d2.ride_id = r.id
         WHERE ${clauses.join(' AND ')}
         ORDER BY r.requested_at DESC
         LIMIT $1`,

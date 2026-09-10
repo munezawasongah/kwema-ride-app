@@ -24,6 +24,78 @@ double _double(dynamic v, [double fallback = 0]) {
 }
 
 // =====================================================================
+// Service
+// =====================================================================
+
+/// The three products. All are courier-shaped jobs sharing one pipeline:
+/// a ride carries a person, a parcel carries goods, food carries a meal
+/// someone already ordered.
+enum ServiceType {
+  ride('ride', Icons.local_taxi, 'service.ride'),
+  parcel('parcel', Icons.inventory_2_outlined, 'service.parcel'),
+  food('food', Icons.lunch_dining_outlined, 'service.food');
+
+  const ServiceType(this.wire, this.icon, this.labelKey);
+
+  final String wire;
+  final IconData icon;
+  final String labelKey;
+
+  bool get isDelivery => this != ServiceType.ride;
+
+  /// XL and express carry passengers, not goods, so they have no delivery
+  /// rate card and must not appear in the selector for those services.
+  List<VehicleCategory> get categories => this == ServiceType.ride
+      ? VehicleCategory.values
+      : const [
+          VehicleCategory.boda,
+          VehicleCategory.bajaji,
+          VehicleCategory.standard,
+        ];
+
+  static ServiceType fromWire(String? v) => ServiceType.values.firstWhere(
+        (s) => s.wire == v,
+        orElse: () => ServiceType.ride,
+      );
+}
+
+/// What is being sent, and who receives it.
+class DeliveryDetails {
+  const DeliveryDetails({
+    required this.recipientName,
+    required this.recipientPhone,
+    required this.description,
+    this.size = 'small',
+    this.recipientNote,
+    this.cashToCollectCents = 0,
+    this.farePaidBy = 'sender',
+  });
+
+  final String recipientName;
+  final String recipientPhone;
+  final String description;
+  final String size;
+  final String? recipientNote;
+
+  /// Money the courier collects from the recipient on the sender's behalf.
+  /// Separate from the fare, and never counted as driver earnings.
+  final int cashToCollectCents;
+
+  final String farePaidBy;
+
+  Map<String, dynamic> toJson() => {
+        'recipientName': recipientName,
+        'recipientPhone': recipientPhone,
+        'description': description,
+        'size': size,
+        if (recipientNote != null && recipientNote!.isNotEmpty)
+          'recipientNote': recipientNote,
+        if (cashToCollectCents > 0) 'cashToCollectCents': cashToCollectCents,
+        'farePaidBy': farePaidBy,
+      };
+}
+
+// =====================================================================
 // Vehicle category
 // =====================================================================
 
@@ -217,6 +289,8 @@ class Ride {
     this.driver,
     this.vehicle,
     this.etaSeconds,
+    this.serviceType = ServiceType.ride,
+    this.deliveryCode,
   });
 
   final String id;
@@ -230,6 +304,11 @@ class Ride {
   final DriverProfile? driver;
   final VehicleInfo? vehicle;
   final int? etaSeconds;
+  final ServiceType serviceType;
+
+  /// Shown to the sender only. They pass it to the recipient, who quotes it
+  /// to the courier at handover — that is what makes it proof.
+  final String? deliveryCode;
 
   int get payableCents => finalFareCents ?? quotedFareCents;
 
@@ -253,10 +332,13 @@ class Ride {
             : VehicleInfo.fromJson(
                 (j['vehicle'] as Map).cast<String, dynamic>()),
         etaSeconds: j['etaSeconds'] == null ? null : _int(j['etaSeconds']),
+        serviceType: ServiceType.fromWire(j['serviceType']?.toString()),
+        deliveryCode: j['deliveryCode']?.toString(),
       );
 
   Ride copyWith({RideStatus? status, DriverProfile? driver,
-      VehicleInfo? vehicle, int? etaSeconds, int? finalFareCents, bool? isPaid}) =>
+      VehicleInfo? vehicle, int? etaSeconds, int? finalFareCents, bool? isPaid,
+      String? deliveryCode}) =>
       Ride(
         id: id, reference: reference,
         status: status ?? this.status,
@@ -268,6 +350,8 @@ class Ride {
         driver: driver ?? this.driver,
         vehicle: vehicle ?? this.vehicle,
         etaSeconds: etaSeconds ?? this.etaSeconds,
+        serviceType: serviceType,
+        deliveryCode: deliveryCode ?? this.deliveryCode,
       );
 }
 
