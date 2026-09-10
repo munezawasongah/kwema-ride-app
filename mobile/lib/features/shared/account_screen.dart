@@ -15,6 +15,8 @@ import '../../core/l10n/localization.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../driver/driver_controller.dart';
+import 'emergency_contact_sheet.dart';
+import 'profile_photo.dart';
 
 final profileProvider =
     FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -105,19 +107,7 @@ class AccountScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: theme.colorScheme.primary,
-                child: Text(
-                  (auth.user?.fullName.isNotEmpty ?? false)
-                      ? auth.user!.fullName.substring(0, 1).toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700),
-                ),
-              ),
+              const EditableProfilePhoto(radius: 32),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -191,6 +181,32 @@ class AccountScreen extends ConsumerWidget {
               );
             }),
           ],
+
+          const SizedBox(height: 24),
+          Text(l10n.translate('sos.contact_title'),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Consumer(builder: (context, ref, _) {
+            final contact = ref.watch(emergencyContactProvider);
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.contact_emergency_outlined),
+                title: Text(contact.maybeWhen(
+                  data: (c) => c['name']?.toString().isNotEmpty == true
+                      ? c['name'].toString()
+                      : l10n.translate('sos.contact_none'),
+                  orElse: () => l10n.translate('sos.contact_none'),
+                )),
+                subtitle: Text(contact.maybeWhen(
+                  data: (c) => c['phone']?.toString() ?? l10n.translate('sos.contact_hint'),
+                  orElse: () => l10n.translate('sos.contact_hint'),
+                )),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => EmergencyContactSheet.show(context),
+              ),
+            );
+          }),
 
           const SizedBox(height: 24),
           Text(l10n.translate('settings.language'),

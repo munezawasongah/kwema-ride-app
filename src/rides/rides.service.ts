@@ -225,6 +225,8 @@ export class RidesService {
       `SELECT r.pickup_address, r.dropoff_address, r.quoted_fare_cents,
               r.quoted_distance_m, r.surge_multiplier, r.payment_method,
               u.rating_avg AS rider_rating,
+              u.full_name AS rider_name,
+              u.photo_key AS rider_photo_key,
               t.commission_bps_cap
          FROM rides r
          JOIN users u ON u.id = r.rider_id
@@ -255,6 +257,10 @@ export class RidesService {
       driverEarningsCents: fare - Math.round((fare * commissionBps) / 10_000),
       surgeMultiplier: Number(detail.surge_multiplier),
       riderRating: Number(detail.rider_rating),
+      riderName: detail.rider_name,
+      riderPhotoUrl: detail.rider_photo_key
+        ? `/api/photos/${detail.rider_photo_key}`
+        : null,
       paymentMethod: detail.payment_method,
     });
   }
@@ -332,7 +338,8 @@ export class RidesService {
     }
 
     const [profile] = await this.db.query(
-      `SELECT u.full_name, u.rating_avg, u.phone, d.completed_trips,
+      `SELECT u.full_name, u.rating_avg, u.phone, u.photo_key,
+              d.completed_trips,
               v.plate_number, v.make, v.model, v.colour, v.category
          FROM drivers d
          JOIN users u ON u.id = d.user_id
@@ -344,6 +351,9 @@ export class RidesService {
     return {
       driverPublicProfile: {
         name: profile.full_name,
+        // Required by LATRA's operator-licence app test: the rider must be
+        // able to see the driver's name and photo.
+        photoUrl: profile.photo_key ? `/api/photos/${profile.photo_key}` : null,
         rating: Number(profile.rating_avg),
         trips: Number(profile.completed_trips),
         // Masked behind a voice proxy in production; the raw number is never

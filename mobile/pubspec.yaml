@@ -31,6 +31,10 @@ dependencies:
   shared_preferences: ^2.3.3
   flutter_secure_storage: ^9.2.2
 
+  # Camera and gallery, for profile photos. LATRA's app test requires a
+  # rider to be able to see the driver's photo.
+  image_picker: ^1.1.2
+
   # UI
   google_fonts: ^6.2.1
   # Must track whatever flutter_localizations pins; the SDK constraint wins.

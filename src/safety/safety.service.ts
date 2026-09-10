@@ -198,6 +198,85 @@ export class SafetyService {
    * Fire-and-forget: an SMS gateway that is slow or down must not delay the
    * confirmation shown to someone in trouble.
    */
+  /**
+   * Builds the message sent to an emergency contact.
+   *
+   * A Google Maps link rather than raw coordinates: the contact is a family
+   * member on a phone, not an operator with a mapping tool, and a tappable
+   * link is the difference between knowing roughly where and being able to
+   * go there.
+   */
+  private emergencyText(
+    name: string,
+    lat?: number | null,
+    lng?: number | null,
+  ): string {
+    const where =
+      lat != null && lng != null
+        ? `https://maps.google.com/?q=${lat},${lng}`
+        : 'location unavailable';
+    return (
+      `KWEMA RIDE EMERGENCY\n\n${name || 'Your contact'} has raised an ` +
+      `emergency alert.\n\nLocation: ${where}\n\n` +
+      `Tanzania emergency services: 112`
+    );
+  }
+
+  /**
+   * Sends the alert to the contact over WhatsApp.
+   *
+   * WhatsApp is the messaging default in Tanzania, and unlike SMS it carries
+   * a tappable map link reliably and shows delivery. It needs a WhatsApp
+   * Business API provider — Meta Cloud API, or a reseller — configured
+   * through WHATSAPP_API_URL and WHATSAPP_TOKEN.
+   *
+   * SMS remains the fallback and is always attempted, because WhatsApp
+   * requires the recipient to have it installed and to have data. In an
+   * emergency, sending both is worth the duplicate cost.
+   */
+  private async sendWhatsApp(to: string, text: string): Promise<boolean> {
+    const url = process.env.WHATSAPP_API_URL;
+    const token = process.env.WHATSAPP_TOKEN;
+    if (!url || !token) return false;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          // WhatsApp expects the number without a leading plus.
+          to: to.replace('+', ''),
+          type: 'text',
+          text: { preview_url: true, body: text },
+        }),
+      });
+      if (!res.ok) {
+        this.logger.error(`whatsapp send failed: ${res.status}`);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      this.logger.error(`whatsapp send error: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /**
+   * A wa.me deep link the apps and the admin panel can open directly.
+   *
+   * This works with no Business API credentials at all — it opens WhatsApp
+   * with the message pre-filled. It requires a human to press send, so it
+   * complements automatic delivery rather than replacing it, and it is what
+   * lets an operator reach a contact immediately from the SOS queue.
+   */
+  whatsappLink(to: string, text: string): string {
+    return `https://wa.me/${to.replace('+', '')}?text=${encodeURIComponent(text)}`;
+  }
+
   private async notifyEmergencyContact(
     userId: string,
     alertId: string | null,
@@ -212,15 +291,17 @@ export class SafetyService {
       const to = user?.emergency_contact_phone;
       if (!to) return;
 
-      const where = lat && lng
-        ? `https://maps.google.com/?q=${lat},${lng}`
-        : 'location unavailable';
-      const text =
-        `KWEMA RIDE: ${user.full_name || 'Your contact'} raised an emergency ` +
-        `alert. Location: ${where}. Tanzania emergency: 112.`;
+      const text = this.emergencyText(user.full_name, lat, lng);
+
+      // Both channels, deliberately. WhatsApp carries the map link properly
+      // and is what people actually read here; SMS reaches a handset with no
+      // data or no WhatsApp installed. In an emergency the duplicate cost is
+      // not worth optimising away.
+      const viaWhatsApp = await this.sendWhatsApp(to, text);
+      if (viaWhatsApp) this.logger.log(`emergency contact reached on WhatsApp`);
 
       if (!process.env.SMS_API_URL) {
-        this.logger.warn(`[dev] would SMS ${to}: ${text}`);
+        this.logger.warn(`[dev] would message ${to}: ${text}`);
       } else {
         await fetch(process.env.SMS_API_URL, {
           method: 'POST',
@@ -263,11 +344,21 @@ export class SafetyService {
 
   async getEmergencyContact(userId: string) {
     const [row] = await this.db.query(
-      `SELECT emergency_contact_name AS name, emergency_contact_phone AS phone
+      `SELECT emergency_contact_name AS name, emergency_contact_phone AS phone,
+              full_name
          FROM users WHERE id = $1`,
       [userId],
     );
-    return { ...(row ?? { name: null, phone: null }), emergency: EMERGENCY_NUMBERS };
+    return {
+      name: row?.name ?? null,
+      phone: row?.phone ?? null,
+      emergency: EMERGENCY_NUMBERS,
+      // Lets the app offer "message my contact on WhatsApp" without needing
+      // Business API credentials configured.
+      whatsappTemplate: row?.phone
+        ? this.whatsappLink(row.phone, this.emergencyText(row.full_name))
+        : null,
+    };
   }
 
   // -------------------------------------------------------------------
@@ -275,7 +366,7 @@ export class SafetyService {
   // -------------------------------------------------------------------
 
   async open(limit = 50) {
-    return this.db.query(
+    const rows = await this.db.query(
       `SELECT s.id, s.raised_by, s.status, s.note, s.created_at,
               s.acknowledged_at, s.emergency_called, s.contact_notified_at,
               ST_Y(s.position::geometry) AS lat,
@@ -292,6 +383,18 @@ export class SafetyService {
         LIMIT $1`,
       [limit],
     );
+
+    // Precomputed so an operator can reach the contact in one click rather
+    // than composing a message while someone waits.
+    return rows.map((r: any) => ({
+      ...r,
+      contactWhatsapp: r.emergency_contact_phone
+        ? this.whatsappLink(
+            r.emergency_contact_phone,
+            this.emergencyText(r.full_name, r.lat, r.lng),
+          )
+        : null,
+    }));
   }
 
   async history(limit = 100) {

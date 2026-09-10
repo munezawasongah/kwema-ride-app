@@ -27,6 +27,18 @@ const String kApiBaseUrl = String.fromEnvironment(
   defaultValue: 'https://kwema-ride-app-production.up.railway.app',
 );
 
+/// Why a token refresh did not produce a new access token.
+enum RefreshOutcome {
+  /// A new access token was issued.
+  ok,
+
+  /// The server refused the refresh token. The session is over.
+  rejected,
+
+  /// The server could not be reached. The session is still valid.
+  unreachable,
+}
+
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.code});
   final String message;
@@ -58,7 +70,7 @@ class ApiClient {
 
   late final Dio _dio;
   final SessionStore _session;
-  Future<bool>? _refreshing;
+  Future<RefreshOutcome>? _refreshing;
 
   /// Called when refresh fails and the user must sign in again.
   VoidCallback? onSessionExpired;
@@ -113,10 +125,18 @@ class ApiClient {
     final status = response.statusCode ?? 0;
 
     if (status == 401 && !didRefresh) {
-      final ok = await _refreshOnce();
-      if (ok) {
+      final outcome = await _refreshOnce();
+
+      if (outcome == RefreshOutcome.ok) {
         return _send(method, path, body: body, query: query, didRefresh: true);
       }
+
+      if (outcome == RefreshOutcome.unreachable) {
+        // Keep the session. The caller sees a network error, which is the
+        // truth, and the next attempt on a better connection will succeed.
+        throw ApiException('network_unreachable');
+      }
+
       onSessionExpired?.call();
       throw ApiException('session_expired', statusCode: 401);
     }
@@ -134,27 +154,53 @@ class ApiClient {
 
   /// Single-flight refresh: concurrent 401s wait on the same future rather
   /// than each rotating the refresh token and invalidating the others.
-  Future<bool> _refreshOnce() {
+  Future<RefreshOutcome> _refreshOnce() {
     return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
   }
 
-  Future<bool> _doRefresh() async {
+  /// Refreshes the access token.
+  ///
+  /// Returns three distinct outcomes rather than a boolean, because
+  /// collapsing them is what made the app demand a new SMS code every time
+  /// it opened on a weak signal: an unreachable server was treated as a
+  /// rejected credential, and the session was wiped.
+  ///
+  /// Only [RefreshOutcome.rejected] — the server actually refusing the token
+  /// — ends a session.
+  Future<RefreshOutcome> _doRefresh() async {
     final refresh = await _session.refreshToken();
-    if (refresh == null) return false;
+    if (refresh == null) return RefreshOutcome.rejected;
+
     try {
       final res = await _dio.post<dynamic>('/auth/refresh', data: {
         'refreshToken': refresh,
         'deviceId': await _session.deviceId(),
       });
-      if (res.statusCode != 200 && res.statusCode != 201) return false;
-      final data = (res.data as Map).cast<String, dynamic>();
-      await _session.save(
-        accessToken: data['accessToken'].toString(),
-        refreshToken: data['refreshToken'].toString(),
-      );
-      return true;
+
+      final status = res.statusCode ?? 0;
+      if (status == 200 || status == 201) {
+        final data = (res.data as Map).cast<String, dynamic>();
+        await _session.save(
+          accessToken: data['accessToken'].toString(),
+          refreshToken: data['refreshToken'].toString(),
+        );
+        return RefreshOutcome.ok;
+      }
+
+      // 401 or 403 means the token is genuinely no longer valid. A 5xx is the
+      // server having a bad time, which is not the user's problem to solve by
+      // signing in again.
+      return (status == 401 || status == 403)
+          ? RefreshOutcome.rejected
+          : RefreshOutcome.unreachable;
+    } on DioException catch (e) {
+      final networkish = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError;
+      return networkish ? RefreshOutcome.unreachable : RefreshOutcome.rejected;
     } catch (_) {
-      return false;
+      return RefreshOutcome.unreachable;
     }
   }
 }

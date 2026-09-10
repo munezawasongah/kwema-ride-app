@@ -267,6 +267,9 @@
                 ${a.emergency_contact_phone ? `<div style="font-size:13.5px;margin-top:4px">
                   Contact: ${esc(a.emergency_contact_name || '')}
                   <a href="tel:${esc(a.emergency_contact_phone)}">${esc(a.emergency_contact_phone)}</a>
+                  ${a.contactWhatsapp ? `<a class="btn-sm" style="background:#25D366;color:#fff;
+                     padding:4px 10px;margin-left:6px;text-decoration:none;display:inline-block"
+                     target="_blank" rel="noopener" href="${a.contactWhatsapp}">WhatsApp</a>` : ''}
                   ${a.contact_notified_at ? '<span class="pill p-ok">notified</span>'
                                           : '<span class="pill p-warn">not notified</span>'}</div>` : ''}
               </div>
@@ -462,7 +465,8 @@
             <td>${d.completed_trips}</td>
             <td>${Number(d.rating_avg).toFixed(2)} <span style="color:var(--muted)">(${d.rating_count})</span></td>
             <td class="money ${bal > 0 ? 'pos' : bal < 0 ? 'neg' : ''}">${tzs(bal)}</td>
-            <td>${expired ? '<span class="pill p-bad">expired</span>' : '<span class="pill p-ok">valid</span>'}</td>
+            <td>${expired ? '<span class="pill p-bad">expired</span>' : '<span class="pill p-ok">valid</span>'}
+                ${d.photo_key ? '' : '<span class="pill p-warn" title="LATRA app test requires a driver photo">no photo</span>'}</td>
             <td>${d.compliance_verified_at
                   ? `<button class="btn-sm btn-stop" data-suspend="${d.id}">Suspend</button>`
                   : `<button class="btn-sm btn-go" data-verify="${d.id}">Approve</button>`}</td>

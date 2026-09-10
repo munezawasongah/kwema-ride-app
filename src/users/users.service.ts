@@ -58,7 +58,7 @@ export class UsersService {
   async profile(userId: string) {
     const [row] = await this.db.query(
       `SELECT u.id, u.phone, u.full_name, u.preferred_language,
-              u.rating_avg, u.rating_count, u.created_at,
+              u.rating_avg, u.rating_count, u.created_at, u.photo_key,
               d.id AS driver_id, d.state AS driver_state
          FROM users u
          LEFT JOIN drivers d ON d.user_id = u.id
@@ -71,6 +71,7 @@ export class UsersService {
       id: row.id,
       phone: row.phone,
       fullName: row.full_name,
+      photoUrl: row.photo_key ? `/api/photos/${row.photo_key}` : null,
       language: row.preferred_language,
       rating: Number(row.rating_avg),
       ratingCount: Number(row.rating_count),

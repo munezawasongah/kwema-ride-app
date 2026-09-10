@@ -10,6 +10,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import 'rider_controller.dart';
 import '../shared/sos_button.dart';
+import '../shared/profile_photo.dart';
 
 class RideTrackingSheet extends ConsumerWidget {
   const RideTrackingSheet({super.key, required this.ride});
@@ -76,16 +77,10 @@ class RideTrackingSheet extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: theme.colorScheme.primary,
-                      child: Text(
-                        ride.driver!.name.isEmpty
-                            ? '?'
-                            : ride.driver!.name.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w700),
-                      ),
+                    ProfilePhoto(
+                      name: ride.driver!.name,
+                      photoUrl: ride.driver!.photoUrl,
+                      radius: 24,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

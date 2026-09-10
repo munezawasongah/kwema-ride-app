@@ -12,6 +12,8 @@
 
 import 'dart:convert';
 import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,6 +23,7 @@ class SessionStore {
   final SharedPreferences _prefs;
   static const _secure = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
   static const _kAccess = 'kwema_access';
@@ -29,22 +32,50 @@ class SessionStore {
   static const _kUserId = 'kwema_user_id';
   static const _kUserJson = 'kwema_user_json';
 
-  Future<String?> accessToken() => _secure.read(key: _kAccess);
-  Future<String?> refreshToken() => _secure.read(key: _kRefresh);
+  /// Reads from the keystore, never throwing.
+  ///
+  /// `flutter_secure_storage` on Android can throw when the encrypted
+  /// preferences file cannot be unwrapped — after certain OS updates, or on
+  /// devices with a flaky keystore. An uncaught throw here happened during
+  /// app start, before any error handling, and left the app stuck or signed
+  /// out. A null is recoverable; an exception at that point is not.
+  Future<String?> _readSafely(String key) async {
+    try {
+      return await _secure.read(key: key);
+    } catch (err) {
+      debugPrint('secure storage read failed for $key: $err');
+      return null;
+    }
+  }
+
+  Future<String?> accessToken() => _readSafely(_kAccess);
+  Future<String?> refreshToken() => _readSafely(_kRefresh);
 
   Future<void> save({
     required String accessToken,
     required String refreshToken,
     String? userId,
   }) async {
-    await _secure.write(key: _kAccess, value: accessToken);
-    await _secure.write(key: _kRefresh, value: refreshToken);
+    try {
+      await _secure.write(key: _kAccess, value: accessToken);
+      await _secure.write(key: _kRefresh, value: refreshToken);
+    } catch (err) {
+      // A failed write means the person would silently be asked for a new
+      // code on next launch. Surfacing it in the log is the only thing that
+      // makes that diagnosable in the field.
+      debugPrint('secure storage write failed: $err');
+      rethrow;
+    }
     if (userId != null) await _prefs.setString(_kUserId, userId);
   }
 
   Future<void> clear() async {
-    await _secure.delete(key: _kAccess);
-    await _secure.delete(key: _kRefresh);
+    try {
+      await _secure.delete(key: _kAccess);
+      await _secure.delete(key: _kRefresh);
+    } catch (err) {
+      debugPrint('secure storage clear failed: $err');
+    }
     await _prefs.remove(_kUserId);
     await _prefs.remove(_kUserJson);
   }

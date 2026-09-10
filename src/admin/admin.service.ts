@@ -34,7 +34,9 @@ export class AdminService {
         COUNT(*) FILTER (WHERE status IN ('requested','searching',
                           'accepted','arrived','in_progress'))  AS active,
         COUNT(*) FILTER (WHERE status = 'expired')              AS expired,
-        COUNT(*) FILTER (WHERE status LIKE 'cancelled%')        AS cancelled,
+        -- ::text is required: LIKE has no operator for an enum type, and
+        -- without the cast the whole overview query fails with a 500.
+        COUNT(*) FILTER (WHERE status::text LIKE 'cancelled%') AS cancelled,
         COALESCE(SUM(final_fare_cents) FILTER (WHERE status = 'completed'), 0)
                                                                 AS gross_cents,
         COALESCE(SUM(commission_cents) FILTER (WHERE status = 'completed'), 0)
@@ -113,6 +115,7 @@ export class AdminService {
 
     return this.db.query(
       `SELECT d.id, u.full_name, u.phone, u.rating_avg, u.rating_count,
+              u.photo_key,
               d.state, d.completed_trips, d.acceptance_rate,
               d.wallet_balance_cents, d.debt_ceiling_cents,
               d.compliance_verified_at,

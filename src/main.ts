@@ -28,6 +28,20 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule, { bufferLogs: false });
 
+  // Photo uploads arrive as base64 in JSON, which inflates the payload by
+  // about a third. The global 1 MB limit rejected them, so this route gets
+  // its own parser — raising the limit everywhere would widen the target for
+  // every other endpoint for no reason.
+  app.use(
+    '/api/users/me/photo',
+    json({
+      limit: '12mb',
+      verify: (req: Request & { rawBody?: Buffer }, _res, buf) => {
+        req.rawBody = Buffer.from(buf);
+      },
+    }),
+  );
+
   app.use(
     json({
       limit: '1mb',

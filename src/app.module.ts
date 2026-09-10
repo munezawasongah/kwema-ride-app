@@ -19,6 +19,7 @@ import { EarningsModule } from './earnings/earnings.module';
 import { AdminModule } from './admin/admin.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { SafetyModule } from './safety/safety.module';
+import { PhotosModule } from './photos/photos.module';
 import { HealthController } from './health/health.controller';
 import { StatusController } from './health/status.controller';
 import { ConfigController } from './health/config.controller';
@@ -73,6 +74,7 @@ import { JobsService } from './common/jobs.service';
     AdminModule,
     ApplicationsModule,
     SafetyModule,
+    PhotosModule,
     MapsModule,
     DispatchModule,
     PricingModule,

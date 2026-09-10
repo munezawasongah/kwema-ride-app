@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import '../../core/format/tzs.dart';
 import '../../core/l10n/localization.dart';
 import '../../core/models/models.dart';
+import '../shared/profile_photo.dart';
 
 class IncomingRideModal extends StatefulWidget {
   const IncomingRideModal({
@@ -207,6 +208,17 @@ class _IncomingRideModalState extends State<IncomingRideModal> {
 
             const SizedBox(height: 14),
 
+            if (offer.riderName != null && offer.riderName!.isNotEmpty) ...[
+              ProfilePhoto(
+                name: offer.riderName!,
+                photoUrl: offer.riderPhotoUrl,
+                radius: 20,
+              ),
+              const SizedBox(height: 6),
+              Text(offer.riderName!,
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ],
             Text(
               l10n.translate('driver.new_request'),
               style: theme.textTheme.titleMedium

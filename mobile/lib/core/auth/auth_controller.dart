@@ -50,7 +50,16 @@ class AuthController extends StateNotifier<AuthState> {
   final SessionStore _session;
 
   Future<void> _restore() async {
-    if (!await _session.hasSession) {
+    // Guarded: a keystore read that throws here would leave the app stuck on
+    // the loading state forever, because nothing above catches it.
+    bool signedIn;
+    try {
+      signedIn = await _session.hasSession;
+    } catch (_) {
+      signedIn = false;
+    }
+
+    if (!signedIn) {
       state = const AuthState(stage: AuthStage.phoneEntry);
       return;
     }

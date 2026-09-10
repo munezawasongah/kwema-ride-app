@@ -165,18 +165,22 @@ enum RideStatus {
 class DriverProfile {
   const DriverProfile({
     required this.name, required this.rating,
-    required this.trips, required this.phoneMasked,
+    required this.trips, required this.phoneMasked, this.photoUrl,
   });
   final String name;
   final double rating;
   final int trips;
   final String phoneMasked;
 
+  /// Path on the API, e.g. /api/photos/{key}. Required by LATRA's app test.
+  final String? photoUrl;
+
   factory DriverProfile.fromJson(Map<String, dynamic> j) => DriverProfile(
         name: j['name']?.toString() ?? '',
         rating: _double(j['rating'], 5),
         trips: _int(j['trips']),
         phoneMasked: j['phoneMasked']?.toString() ?? '',
+        photoUrl: j['photoUrl']?.toString(),
       );
 }
 
@@ -287,6 +291,8 @@ class RideOffer {
     required this.surgeMultiplier,
     required this.riderRating,
     required this.paymentMethod,
+    this.riderName,
+    this.riderPhotoUrl,
   });
 
   final String rideId;
@@ -314,6 +320,8 @@ class RideOffer {
   final double surgeMultiplier;
   final double riderRating;
   final String paymentMethod;
+  final String? riderName;
+  final String? riderPhotoUrl;
 
   factory RideOffer.fromJson(Map<String, dynamic> j) => RideOffer(
         rideId: j['rideId']?.toString() ?? '',
@@ -331,6 +339,8 @@ class RideOffer {
         surgeMultiplier: _double(j['surgeMultiplier'], 1),
         riderRating: _double(j['riderRating'], 5),
         paymentMethod: j['paymentMethod']?.toString() ?? 'cash',
+        riderName: j['riderName']?.toString(),
+        riderPhotoUrl: j['riderPhotoUrl']?.toString(),
       );
 }
 
