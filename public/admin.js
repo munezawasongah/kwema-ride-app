@@ -10,6 +10,13 @@
  */
 
 (function () {
+  // Declared up front: the 401 handler can fire from any request, including
+  // one made before the SOS view has ever been opened.
+  let sosTimer = null;
+  function stopSosPolling() {
+    if (sosTimer) { clearInterval(sosTimer); sosTimer = null; }
+  }
+
   const S = {
     token: sessionStorage.getItem('kwema_admin_token') || null,
     tab: 'overview',
@@ -35,6 +42,8 @@
     if (res.status === 401) {
       sessionStorage.removeItem('kwema_admin_token');
       S.token = null;
+      // Otherwise it keeps polling a dead session behind the login screen.
+      stopSosPolling();
       renderLogin('Session expired. Sign in again.');
       throw new Error('unauthorized');
     }
@@ -134,6 +143,7 @@
     document.getElementById('signout').onclick = () => {
       sessionStorage.removeItem('kwema_admin_token');
       S.token = null;
+      stopSosPolling();
       renderLogin();
     };
 
@@ -143,7 +153,16 @@
   }
 
   const content = () => document.getElementById('content');
-  const fail = (e) => { content().innerHTML = `<div class="msg-box m-err">${esc(e.message)}</div>`; };
+
+  const fail = (e) => {
+    // An expired session already replaced the page with the login screen, so
+    // #content no longer exists. Writing blind threw "Cannot set properties
+    // of null" and hid the real cause behind a meaningless message.
+    if (e && e.message === 'unauthorized') return;
+    const el = content();
+    if (!el) return;
+    el.innerHTML = `<div class="msg-box m-err">${esc(e.message)}</div>`;
+  };
 
   // =================================================================
   // Overview
@@ -207,10 +226,7 @@
   // Auto-refreshes and plays a sound on a new alert. An emergency queue that
   // needs someone to remember to press reload is not a safety feature.
   // =================================================================
-  let sosTimer = null;
   let knownAlerts = new Set();
-
-  function stopSosPolling() { if (sosTimer) { clearInterval(sosTimer); sosTimer = null; } }
 
   async function viewSos() {
     content().innerHTML = `
@@ -344,6 +360,7 @@
     try {
       const rows = await api('/admin/applications?status=' + S.appFilter + '&limit=200');
       const box = document.getElementById('alist');
+      if (!box) return;
       if (!rows.length) {
         box.innerHTML = '<div class="empty">No applications here.</div>';
         return;
@@ -443,6 +460,7 @@
       const q = S.driverFilter === 'all' ? '' : '?filter=' + S.driverFilter;
       const rows = await api('/admin/drivers' + q);
       const box = document.getElementById('dlist');
+      if (!box) return;
       if (!rows.length) { box.innerHTML = '<div class="empty">No drivers match.</div>'; return; }
 
       const today = new Date().toISOString().slice(0, 10);
@@ -529,6 +547,7 @@
     try {
       const rows = await api('/admin/rides?status=' + S.rideFilter);
       const box = document.getElementById('rlist');
+      if (!box) return;
       if (!rows.length) { box.innerHTML = '<div class="empty">No rides.</div>'; return; }
       box.innerHTML = `<table><thead><tr>
         <th>Ref</th><th>When</th><th>Rider</th><th>Driver</th><th>Route</th>
@@ -568,6 +587,7 @@
       const [pay, debt] = await Promise.all([api('/admin/payouts'), api('/admin/debtors')]);
 
       const pbox = document.getElementById('plist');
+      if (!pbox) return;
       pbox.innerHTML = !pay.length
         ? '<div class="empty">Nothing to pay out.</div>'
         : `<table><thead><tr><th>Driver</th><th>Phone</th><th>Trips</th>
@@ -599,7 +619,9 @@
         };
       });
 
-      document.getElementById('dblist').innerHTML = !debt.length
+      const dbox = document.getElementById('dblist');
+      if (!dbox) return;
+      dbox.innerHTML = !debt.length
         ? '<div class="empty">No outstanding driver debt.</div>'
         : `<table><thead><tr><th>Driver</th><th>Phone</th><th>Debt</th>
              <th>Ceiling</th><th>Status</th></tr></thead><tbody>${debt.map((d) => `<tr>
@@ -633,7 +655,9 @@
         const d = await api(`/admin/reconcile?from=${document.getElementById('from').value}` +
                             `&to=${document.getElementById('to').value}`);
         const clean = d.varianceCents === 0;
-        document.getElementById('rec').innerHTML = `
+        const recBox = document.getElementById('rec');
+        if (!recBox) return;
+        recBox.innerHTML = `
           <div class="cards">
             <div class="stat"><div class="label">Completed rides</div>
               <div class="value">${d.completedRides}</div></div>
