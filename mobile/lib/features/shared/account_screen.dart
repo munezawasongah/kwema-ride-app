@@ -18,12 +18,6 @@ import '../driver/driver_controller.dart';
 import 'emergency_contact_sheet.dart';
 import 'profile_photo.dart';
 
-final profileProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final res = await ref.watch(apiClientProvider).get('/users/me');
-  return (res as Map).cast<String, dynamic>();
-});
-
 Future<void> _editName(
     BuildContext context, WidgetRef ref, String current) async {
   final controller = TextEditingController(text: current);

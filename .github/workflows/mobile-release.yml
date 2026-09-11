@@ -105,6 +105,14 @@ jobs:
           echo "--- resolved versions ---"
           flutter pub deps --style=compact --no-dev 2>/dev/null | head -30
 
+      # Catches a missing cross-file import in under a second, before Gradle
+      # spends two minutes discovering the same thing. This is a hard failure:
+      # an unresolved symbol will not compile, so there is nothing to gain
+      # from continuing.
+      - name: Check cross-file symbols
+        working-directory: mobile
+        run: python3 tool/check_symbols.py
+
       # Replaces Flutter's default icon on both apps. Runs after pub get so
       # the package is available, and before the builds so both APKs carry it.
       - name: Generate launcher icons

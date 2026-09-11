@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/l10n/localization.dart';
 import '../../core/network/api_client.dart';
 

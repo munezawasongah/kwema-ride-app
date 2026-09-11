@@ -203,6 +203,16 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
+/// The signed-in user's profile from the server.
+///
+/// Lives here rather than in a screen file: several widgets need it, and
+/// importing a screen to reach a provider creates import cycles.
+final profileProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final res = await ref.watch(apiClientProvider).get('/users/me');
+  return (res as Map).cast<String, dynamic>();
+});
+
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(
