@@ -21,7 +21,11 @@ import { DataSource } from 'typeorm';
 
 import { REDIS } from '../common/redis.module';
 
-export type VehicleCategory = 'boda' | 'bajaji' | 'standard' | 'xl' | 'express';
+export type VehicleCategory =
+  | 'boda' | 'bajaji' | 'standard' | 'xl' | 'express'
+  // Electric equivalents. Separate tiers because they carry their own rate
+  // cards; a bajaji is a tuk-tuk, so there is no separate tuk-tuk tier.
+  | 'e_boda' | 'e_bajaji' | 'e_car';
 
 export interface DispatchRequest {
   rideId: string;
@@ -72,6 +76,11 @@ export const DISPATCH_CONFIG = {
     standard: [1500, 3500, 7000],
     xl: [2500, 5000, 9000],
     express: [1500, 3500, 7000],
+    // Wider rings for electric: the fleet is far smaller, so a tight first
+    // ring would report "no drivers" while one sat two kilometres away.
+    e_boda: [2000, 4000, 6000],
+    e_bajaji: [2500, 4500, 7000],
+    e_car: [3000, 6000, 9000],
   } as Record<VehicleCategory, number[]>,
 
   /** How many candidates to score per ring. */
@@ -104,6 +113,10 @@ export const DISPATCH_CONFIG = {
     standard: 14,
     xl: 13,
     express: 14,
+    // Same road conditions; the motor makes no difference to traffic.
+    e_boda: 22,
+    e_bajaji: 16,
+    e_car: 14,
   } as Record<VehicleCategory, number>,
 };
 

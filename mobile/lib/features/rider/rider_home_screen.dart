@@ -421,12 +421,22 @@ class _CategoryCard extends StatelessWidget {
             children: [
               // Tier colour bar rather than an icon: riders with limited
               // literacy recognise the tile by colour before reading it.
-              Container(
-                width: 28, height: 5,
-                decoration: BoxDecoration(
-                  color: quote.category.colour,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: quote.category.isElectric ? 20 : 28,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: quote.category.colour,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  if (quote.category.isElectric) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.bolt, size: 13, color: quote.category.colour),
+                  ],
+                ],
               ),
               const SizedBox(height: 10),
               Text(l10n.categoryName(quote.category),

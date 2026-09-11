@@ -299,11 +299,20 @@
   }
 
   const CAT_COLOUR = { boda: '#D9722B', bajaji: '#C9A227', standard: '#3A4BB8',
-    xl: '#2E7D74', express: '#30409B' };
+    xl: '#2E7D74', express: '#30409B',
+    // Green for the electric tiers, so the distinction registers before the
+    // label is read.
+    e_boda: '#2E9E5B', e_bajaji: '#1E8E63', e_car: '#17806E' };
   const CAT_NAME = {
-    sw: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Gari', xl: 'Gari Kubwa', express: 'Express' },
-    en: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Car', xl: 'Car XL', express: 'Express' },
-    fr: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Voiture', xl: 'Voiture XL', express: 'Express' },
+    sw: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Gari', xl: 'Gari Kubwa',
+          express: 'Express', e_boda: 'Boda ya Umeme', e_bajaji: 'Bajaji ya Umeme',
+          e_car: 'Gari la Umeme' },
+    en: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Car', xl: 'Car XL',
+          express: 'Express', e_boda: 'Electric Boda', e_bajaji: 'Electric Bajaji',
+          e_car: 'Electric Car' },
+    fr: { boda: 'Bodaboda', bajaji: 'Bajaji', standard: 'Voiture', xl: 'Voiture XL',
+          express: 'Express', e_boda: 'Boda électrique', e_bajaji: 'Bajaji électrique',
+          e_car: 'Voiture électrique' },
   };
 
   function renderQuotes() {
@@ -318,6 +327,7 @@
         '<div class="cat' + (state.selected && q.category === state.selected.category ? ' on' : '') +
           '" data-cat="' + q.category + '">' +
           '<div class="bar" style="background:' + CAT_COLOUR[q.category] + '"></div>' +
+          (q.category.startsWith('e_') ? '<span class="ev">\u26A1</span>' : '') +
           '<div><div class="nm">' + CAT_NAME[lang][q.category] + '</div>' +
           '<div class="mt">' + Math.ceil(q.durationSeconds / 60) + ' min · ' +
             (q.distanceMetres / 1000).toFixed(1) + ' km</div></div>' +

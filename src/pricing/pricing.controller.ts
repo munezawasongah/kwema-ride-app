@@ -6,7 +6,8 @@ import { FareService } from './fare.service';
 import { MapsService } from '../maps/maps.service';
 import { VehicleCategory } from '../dispatch/dispatch.service';
 
-const CATEGORIES: VehicleCategory[] = ['boda', 'bajaji', 'standard', 'xl', 'express'];
+const CATEGORIES: VehicleCategory[] = ['boda', 'bajaji', 'standard', 'xl', 'express',
+  'e_boda', 'e_bajaji', 'e_car'];
 
 class QuoteDto {
   @IsNumber() pickupLat: number;
@@ -49,9 +50,13 @@ export class PricingController {
 
     // XL and express carry passengers, not goods, so they have no delivery
     // rate card. Quoting them would fail per-category with a confusing error.
+    // XL and express carry passengers, not goods. Everything else can, and
+    // the electric tiers are no different in what they can hold.
     const available = service === 'ride'
       ? CATEGORIES
-      : (['boda', 'bajaji', 'standard'] as VehicleCategory[]);
+      : ([
+          'boda', 'e_boda', 'bajaji', 'e_bajaji', 'standard', 'e_car',
+        ] as VehicleCategory[]);
 
     const categories = dto.category ? [dto.category] : available;
 

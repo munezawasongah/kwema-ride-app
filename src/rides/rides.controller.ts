@@ -45,7 +45,8 @@ class RequestRideDto {
   /** Required when serviceType is parcel or food. */
   @IsOptional() @ValidateNested() @Type(() => DeliveryDto) delivery?: DeliveryDto;
   @IsString() quoteId: string;
-  @IsIn(['boda', 'bajaji', 'standard', 'xl', 'express']) category: string;
+  @IsIn(['boda', 'bajaji', 'standard', 'xl', 'express',
+  'e_boda', 'e_bajaji', 'e_car']) category: string;
   @IsIn(['cash', 'mobile_money', 'card', 'wallet']) paymentMethod: string;
   @ValidateNested() @Type(() => PointDto) pickup: PointDto;
   @ValidateNested() @Type(() => PointDto) dropoff: PointDto;

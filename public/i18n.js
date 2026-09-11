@@ -130,6 +130,10 @@ const KWEMA_I18N = {
     'services.ride': 'Safiri mwenyewe kwa bodaboda, bajaji au gari.',
     'services.parcel': 'Tuma nyaraka au bidhaa mjini kwa dakika, si siku.',
     'services.food': 'Chukua chakula ulichoagiza na kikufikie kikiwa moto.',
+    'fleet.electric.name': 'Umeme',
+    'fleet.electric': 'Bodaboda, bajaji na magari ya umeme — nauli nafuu, hakuna moshi.',
+    'fleet.electric.cap': 'Aina 3',
+    'fleet.electric.note': 'Nafuu kwa kila km',
   },
   en: {
     'notice': 'Preview release — fares are illustrative until LATRA rates are confirmed.',
@@ -257,6 +261,10 @@ const KWEMA_I18N = {
     'services.ride': 'Travel yourself by bodaboda, bajaji or car.',
     'services.parcel': 'Send documents or goods across town in minutes, not days.',
     'services.food': 'Collect the meal you ordered and get it while it is still hot.',
+    'fleet.electric.name': 'Electric',
+    'fleet.electric': 'Electric bodaboda, bajaji and cars — lower fares, no fumes.',
+    'fleet.electric.cap': '3 types',
+    'fleet.electric.note': 'Cheaper per km',
   },
   fr: {
     'notice': 'Version préliminaire — les tarifs sont indicatifs en attendant la confirmation LATRA.',
@@ -384,6 +392,10 @@ const KWEMA_I18N = {
     'services.ride': 'Déplacez-vous en bodaboda, bajaji ou voiture.',
     'services.parcel': 'Envoyez documents ou marchandises en ville en minutes.',
     'services.food': 'Faites récupérer le repas commandé pendant qu’il est chaud.',
+    'fleet.electric.name': 'Électrique',
+    'fleet.electric': 'Bodaboda, bajaji et voitures électriques — tarifs réduits, sans fumée.',
+    'fleet.electric.cap': '3 types',
+    'fleet.electric.note': 'Moins cher au km',
   },
 };
 

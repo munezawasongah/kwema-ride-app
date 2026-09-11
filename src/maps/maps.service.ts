@@ -133,7 +133,7 @@ export class MapsService {
       // degraded to a straight-line estimate — on the highest-volume tier,
       // which is the worst possible place for it. Retry once in driving mode
       // before giving up on real routing; the time factor below still applies.
-      if (category === 'boda' && data.status !== 'OK') {
+      if (isTwoWheeler(category) && data.status !== 'OK') {
         this.logger.warn(
           `bicycling routing unavailable (${data.status}); retrying as driving`,
         );
@@ -555,6 +555,9 @@ export class MapsService {
       standard: 14,
       xl: 13,
       express: 14,
+      e_boda: 22,
+      e_bajaji: 16,
+      e_car: 14,
     };
     const metres = haversineMetres(origin, destination) * 1.35;
     return Math.round(metres / ((speeds[category] * 1000) / 3600));
@@ -583,6 +586,11 @@ export class MapsService {
       throw new BadRequestException(`${label} is outside the service area`);
     }
   }
+}
+
+/** Motorcycles filter through traffic; an electric one does so identically. */
+export function isTwoWheeler(category: VehicleCategory): boolean {
+  return category === 'boda' || category === 'e_boda';
 }
 
 export function haversineMetres(a: LatLng, b: LatLng): number {

@@ -49,8 +49,11 @@ enum ServiceType {
       ? VehicleCategory.values
       : const [
           VehicleCategory.boda,
+          VehicleCategory.eBoda,
           VehicleCategory.bajaji,
+          VehicleCategory.eBajaji,
           VehicleCategory.standard,
+          VehicleCategory.eCar,
         ];
 
   static ServiceType fromWire(String? v) => ServiceType.values.firstWhere(
@@ -104,7 +107,14 @@ enum VehicleCategory {
   bajaji('bajaji', Color(0xFFC9A227), 'assets/vehicles/bajaji.png'),
   standard('standard', Color(0xFF3A4BB8), 'assets/vehicles/car.png'),
   xl('xl', Color(0xFF2E7D74), 'assets/vehicles/xl.png'),
-  express('express', Color(0xFF30409B), 'assets/vehicles/express.png');
+  express('express', Color(0xFF30409B), 'assets/vehicles/express.png'),
+
+  // Electric tiers. Green rather than the petrol tier's colour, so the
+  // distinction is visible before the label is read — the same reasoning
+  // behind colour-coding the tiers at all.
+  eBoda('e_boda', Color(0xFF2E9E5B), 'assets/vehicles/boda.png'),
+  eBajaji('e_bajaji', Color(0xFF1E8E63), 'assets/vehicles/bajaji.png'),
+  eCar('e_car', Color(0xFF17806E), 'assets/vehicles/car.png');
 
   const VehicleCategory(this.wire, this.colour, this.assetPath);
 
@@ -116,6 +126,24 @@ enum VehicleCategory {
   final Color colour;
 
   final String assetPath;
+
+  /// True for the battery-powered tiers.
+  bool get isElectric => wire.startsWith('e_');
+
+  /// The petrol equivalent, used to show an electric tier beside its
+  /// counterpart rather than in a separate group.
+  VehicleCategory get petrolEquivalent {
+    switch (this) {
+      case VehicleCategory.eBoda:
+        return VehicleCategory.boda;
+      case VehicleCategory.eBajaji:
+        return VehicleCategory.bajaji;
+      case VehicleCategory.eCar:
+        return VehicleCategory.standard;
+      default:
+        return this;
+    }
+  }
 
   static VehicleCategory fromWire(String? value) =>
       VehicleCategory.values.firstWhere(

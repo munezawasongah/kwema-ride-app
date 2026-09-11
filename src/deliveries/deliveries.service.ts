@@ -36,9 +36,9 @@ export interface DeliveryDetails {
  * everyone's time.
  */
 export const SIZE_LIMITS: Record<ParcelSize, string[]> = {
-  small: ['boda', 'bajaji', 'standard'],
-  medium: ['bajaji', 'standard'],
-  large: ['standard'],
+  small: ['boda', 'e_boda', 'bajaji', 'e_bajaji', 'standard', 'e_car'],
+  medium: ['bajaji', 'e_bajaji', 'standard', 'e_car'],
+  large: ['standard', 'e_car'],
 };
 
 @Injectable()

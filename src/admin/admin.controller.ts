@@ -7,7 +7,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthedUser } from '../auth/current-user.decorator';
 import { AdminService } from './admin.service';
 
-const CATEGORIES = ['boda', 'bajaji', 'standard', 'xl', 'express'];
+const CATEGORIES = ['boda', 'bajaji', 'standard', 'xl', 'express',
+  'e_boda', 'e_bajaji', 'e_car'];
 
 class CreateDriverDto {
   @Matches(/^\+255[0-9]{9}$/, { message: 'phone must be +255XXXXXXXXX' })
